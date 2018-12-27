@@ -1,78 +1,19 @@
 #pragma once
 
 #include <c3/upsilon/serialisation.hpp>
+#include <c3/upsilon/hash.hpp>
 
 #include <memory>
 
 #include <functional>
 
 namespace c3::theta {
-  using bits = std::vector<bool>;
-
-  template<bool> struct Range;
-
-  template<size_t DoF, typename = Range<true>>
-  class data_point_rep;
-
-  template<size_t DoF>
-  class data_point_rep<DoF, Range<(DoF >= 1 && DoF < 8)>> {
-  public:
-    using type = uint8_t;
-    static constexpr type Mask = std::numeric_limits<type>::max() >> DoF;
-  };
-
-  template<size_t DoF>
-  class data_point_rep<DoF, Range<(DoF >= 8 && DoF < 16)>> {
-  public:
-    using type = uint16_t;
-    static constexpr type Mask = std::numeric_limits<type>::max() >> DoF;
-  };
-
-  template<size_t DoF>
-  class data_point_rep<DoF, Range<(DoF >= 16 && DoF < 32)>> {
-  public:
-    using type = uint32_t;
-    static constexpr type Mask = std::numeric_limits<type>::max() >> DoF;
-  };
-
-  template<size_t DoF>
-  class data_point_rep<DoF, Range<(DoF >= 32 && DoF < 64)>> {
-  public:
-    using type = uint64_t;
-    static constexpr type Mask = std::numeric_limits<type>::max() >> DoF;
-  };
-
-  template<size_t DoF>
-  class data_point {
-  public:
-    using rep_t = typename data_point_rep<DoF>::type;
-
-  private:
-    rep_t _value;
-
-  public:
-    inline data_point<DoF>& safe_set(rep_t new_val) {
-      _value = new_val & data_point_rep<DoF>::Mask;
-    }
-    inline data_point<DoF>& unsafe_set(rep_t new_val) {
-      _value = new_val;
-    }
-    inline data_point<DoF>& operator=(rep_t new_val) {
-      safe_set(new_val);
-    }
-
-    inline rep_t get() const { return _value; }
-
-    inline operator rep_t() const { return get(); }
-    inline rep_t operator*() { return get(); }
-  };
-
   // Something that can chuck bits into and gather bits from some medium
-  template<size_t DoF>
+  template<uint_fast8_t DoF>
   class medium {
   public:
-    virtual void transmit_points(gsl::span<data_point<DoF>>) = 0;
-    virtual void receive_points(gsl::span<const data_point<DoF>>) = 0;
+    virtual void transmit_points(gsl::span<upsilon::bit_datum<DoF>>) = 0;
+    virtual void receive_points(gsl::span<upsilon::bit_datum<DoF>>) = 0;
 
   public:
     virtual ~medium() = default;
@@ -89,17 +30,7 @@ namespace c3::theta {
     virtual ~channel() = default;
   };
 
-  // A channel that can send and receive arbitarily long sequences of octets
-  class unreliable_link {
-  public:
-    virtual void transmit_msg(upsilon::data_const_ref b) = 0;
-    virtual upsilon::data receive_msg() = 0;
-
-  public:
-    virtual ~unreliable_link() = default;
-  };
-
-  // A channel that can reliably send and receive arbitarily long sequences of octets
+  // A channel that can reliably send and receive arbitarily long sequences of octets (up to 2^64 - 1)
   class link {
   public:
     virtual void transmit_msg(upsilon::data_const_ref b) = 0;
