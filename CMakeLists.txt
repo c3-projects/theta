@@ -10,18 +10,15 @@ set(CMAKE_CXX_STANDARD 17)
 #ALL THE WARNINGS
 add_compile_options("-Wall" "-Wextra") #"-pedantic"
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(BOTAN REQUIRED botan-2)
-include_directories(${BOTAN_INCLUDE_DIRS})
+find_package(Threads REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE source src/*.cpp)
 
-#add_library(${PROJECT_NAME} ${source})
-add_executable(${PROJECT_NAME} ${source})
+add_library(${PROJECT_NAME} ${source})
 
-target_link_libraries(${PROJECT_NAME} ${BOTAN_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} upsilon ${CMAKE_THREAD_LIBS_INIT})
 
 file(GLOB_RECURSE tests tests/*.cxx)
 

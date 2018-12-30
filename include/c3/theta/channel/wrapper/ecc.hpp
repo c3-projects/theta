@@ -11,10 +11,10 @@ namespace c3::theta::wrapper {
   class __reed_sol_van_impl;
 
 
-  template<uint_fast8_t DoF, uint_fast8_t ErrorBits>
+  template<upsilon::n_bits_rep_t DoF, upsilon::n_bits_rep_t ErrorBits>
   class reed_sol_van {
     static_assert (DoF > ErrorBits, "Need at least 1 free bit for message!");
-    constexpr static uint_fast8_t MessageBits = DoF - ErrorBits;
+    constexpr static upsilon::n_bits_rep_t MessageBits = DoF - ErrorBits;
 
   public:
     static void encode(gsl::span<const upsilon::bit_datum<upsilon::dynamic_size>> in,
