@@ -1,19 +1,16 @@
 #pragma once
 
+#include <c3/nu/structs.hpp>
+
 #include "c3/theta/channel/base.hpp"
 
 namespace c3::theta::wrapper {
-//  /// So that one can apply ecc to a link
-//  template<uint_fast8_t MaxFrameSize, size_t BeginSyncwordLenPoints = 0,
-//           typename = std::enable_if<MaxFrameSize * 8 <= upsilon::MAX_BIT_DATUM_SIZE>>
-//  std::unique_ptr<medium<MaxFrameSize * 8>> link2medium (
-
   using standard_packet_len_t = uint16_t;
   constexpr size_t standard_packet_size = std::numeric_limits<standard_packet_len_t>::max();
 
   using standard_message_len_t = uint64_t;
 
-  template<upsilon::n_bits_rep_t DoF,
+  template<nu::n_bits_rep_t DoF,
            size_t BeginSyncwordLenPoints = 1,
            size_t SyncRetries = 3 * BeginSyncwordLenPoints>
   class __medium2link : public link<standard_packet_size> {
@@ -24,23 +21,23 @@ namespace c3::theta::wrapper {
     __medium2link(decltype(_base)&& wrappee) : _base{std::move(wrappee)} {}
 
   public:
-    static constexpr std::array<upsilon::bit_datum<DoF>, BeginSyncwordLenPoints> gen_syncword() {
-      std::array<upsilon::bit_datum<DoF>, BeginSyncwordLenPoints> ret;
+    static constexpr std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> gen_syncword() {
+      std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> ret;
       for (auto& i : ret)
-        i = upsilon::bit_datum<DoF>::on_off();
+        i = nu::bit_datum<DoF>::on_off();
       return ret;
     }
-    static constexpr std::array<upsilon::bit_datum<DoF>, BeginSyncwordLenPoints> begin_syncword = gen_syncword();
+    static constexpr std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> begin_syncword = gen_syncword();
 
     inline void sync_rx() {
       if constexpr (BeginSyncwordLenPoints > 0) {
         // Try to find the syncword
-        std::array<upsilon::bit_datum<DoF>, BeginSyncwordLenPoints> maybe_begin_syncword;
+        std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> maybe_begin_syncword;
 
         _base->receive_points(maybe_begin_syncword);
 
         if (maybe_begin_syncword != begin_syncword) {
-          std::array<upsilon::bit_datum<DoF>, BeginSyncwordLenPoints> _1;
+          std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> _1;
 
           auto* current = &maybe_begin_syncword;
           auto* next = &_1;
@@ -57,67 +54,67 @@ namespace c3::theta::wrapper {
     }
 
   public:
-    void transmit_frame(upsilon::data_const_ref b) override {
+    void transmit_frame(nu::data_const_ref b) override {
       if constexpr (BeginSyncwordLenPoints > 0)
         _base->transmit_points(begin_syncword);
 
-      upsilon::data bytes = upsilon::squash_hybrid(static_cast<standard_packet_len_t>(b.size()), b);
+      nu::data bytes = nu::squash_hybrid(static_cast<standard_packet_len_t>(b.size()), b);
 
-      std::vector<upsilon::bit_datum<DoF>> points(upsilon::bit_datum<DoF>::split_len(bytes.size()));
+      std::vector<nu::bit_datum<DoF>> points(nu::bit_datum<DoF>::split_len(bytes.size()));
 
-      upsilon::bit_datum<DoF>::split(bytes, points);
+      nu::bit_datum<DoF>::split(bytes, points);
 
       _base->transmit_points(points);
     }
 
-    upsilon::data receive_frame() override {
+    nu::data receive_frame() override {
       sync_rx();
 
-      constexpr size_t len_n_points = upsilon::bit_datum<DoF>::split_len(upsilon::serialised_size<standard_packet_len_t>());
+      constexpr size_t len_n_points = nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>());
 
-      std::vector<upsilon::bit_datum<DoF>> points(len_n_points);
+      std::vector<nu::bit_datum<DoF>> points(len_n_points);
       _base->receive_points(points);
 
-      upsilon::static_buffer<standard_packet_len_t> len_buf;
-      upsilon::bit_datum<DoF>::combine(points, len_buf);
-      auto len = upsilon::deserialise<standard_packet_len_t>(len_buf);
+      nu::static_buffer<standard_packet_len_t> len_buf;
+      nu::bit_datum<DoF>::combine(points, len_buf);
+      auto len = nu::deserialise<standard_packet_len_t>(len_buf);
 
-      size_t total_bytes = upsilon::serialised_size<standard_packet_len_t>() + len;
-      size_t total_points = upsilon::bit_datum<DoF>::split_len(total_bytes);
+      size_t total_bytes = nu::serialised_size<standard_packet_len_t>() + len;
+      size_t total_points = nu::bit_datum<DoF>::split_len(total_bytes);
       points.resize(total_points);
 
       _base->receive_points({points.data() + len_n_points, static_cast<ssize_t>(points.size() - len_n_points)});
 
-      auto ret = upsilon::bit_datum<DoF>::combine(points, upsilon::serialised_size<standard_packet_len_t>() * 8);
+      auto ret = nu::bit_datum<DoF>::combine(points, nu::serialised_size<standard_packet_len_t>() * 8);
 
       ret.resize(len);
 
       return ret;
     }
 
-    size_t receive_frame(upsilon::data_ref b) override {
+    size_t receive_frame(nu::data_ref b) override {
       sync_rx();
 
-      constexpr size_t len_n_points = upsilon::bit_datum<DoF>::split_len(upsilon::serialised_size<standard_packet_len_t>());
+      constexpr size_t len_n_points = nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>());
 
-      std::vector<upsilon::bit_datum<DoF>> points(len_n_points);
+      std::vector<nu::bit_datum<DoF>> points(len_n_points);
       _base->receive_points(points);
 
-      upsilon::static_buffer<standard_packet_len_t> len_buf;
-      upsilon::bit_datum<DoF>::combine(points, len_buf);
-      auto len = upsilon::deserialise<standard_packet_len_t>(len_buf);
+      nu::static_buffer<standard_packet_len_t> len_buf;
+      nu::bit_datum<DoF>::combine(points, len_buf);
+      auto len = nu::deserialise<standard_packet_len_t>(len_buf);
 
-      points.resize(upsilon::bit_datum<DoF>::split_len(upsilon::serialised_size<standard_packet_len_t>() + len));
+      points.resize(nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>() + len));
 
       _base->receive_points({points.data() + len_n_points, static_cast<ssize_t>(points.size() - len_n_points)});
 
-      upsilon::bit_datum<DoF>::combine(points, b, upsilon::serialised_size<standard_packet_len_t>() * 8);
+      nu::bit_datum<DoF>::combine(points, b, nu::serialised_size<standard_packet_len_t>() * 8);
 
-      return std::min(static_cast<size_t>(b.size()), upsilon::bit_datum<DoF>::combine_len(points.size()));
+      return std::min(static_cast<size_t>(b.size()), nu::bit_datum<DoF>::combine_len(points.size()));
     }
   };
 
-  template<upsilon::n_bits_rep_t DoF, size_t BeginSyncwordLenPoints = 1>
+  template<nu::n_bits_rep_t DoF, size_t BeginSyncwordLenPoints = 1>
   std::unique_ptr<link<standard_packet_size>> medium2link(
     std::unique_ptr<medium<DoF>>&& base) {
     static_assert(DoF > 0, "Must be able to send at least one bit per point");
@@ -137,7 +134,7 @@ namespace c3::theta::wrapper {
       inline __link2channel(decltype(base)&& base) : _base{std::move(base)} {}
 
     public:
-      inline void tx(upsilon::data_const_ref b) {
+      inline void tx(nu::data_const_ref b) {
         size_t last_frame_size = b.size() % PacketLen;
         size_t n_full_frames = b.size() / PacketLen;
 
@@ -150,15 +147,15 @@ namespace c3::theta::wrapper {
       }
 
     public:
-      void transmit_msg(upsilon::data_const_ref b) override {
-        auto to_tx = upsilon::squash_hybrid(static_cast<standard_message_len_t>(b.size()), b);
+      void transmit_msg(nu::data_const_ref b) override {
+        auto to_tx = nu::squash_hybrid(static_cast<standard_message_len_t>(b.size()), b);
         tx(to_tx);
       }
 
-      upsilon::data receive_msg() override {
-        upsilon::data in_buf;
+      nu::data receive_msg() override {
+        nu::data in_buf;
 
-        constexpr size_t expected_len_bytes = upsilon::serialised_size<standard_message_len_t>();
+        constexpr size_t expected_len_bytes = nu::serialised_size<standard_message_len_t>();
 
         in_buf.reserve(expected_len_bytes);
 
@@ -167,13 +164,13 @@ namespace c3::theta::wrapper {
 
           // We must always get closer to our goal
           if (new_frame.size() == 0)
-            throw upsilon::timed_out{};
+            throw nu::timed_out{};
 
           in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
         }
         while(in_buf.size() < expected_len_bytes);
 
-        auto message_len = upsilon::deserialise<standard_message_len_t>({ in_buf.data(), expected_len_bytes });
+        auto message_len = nu::deserialise<standard_message_len_t>({ in_buf.data(), expected_len_bytes });
 
         in_buf.erase(in_buf.begin(), in_buf.begin() + expected_len_bytes);
         in_buf.reserve(message_len);
@@ -183,7 +180,7 @@ namespace c3::theta::wrapper {
 
           // We must always get closer to our goal
           if (new_frame.size() == 0)
-            throw upsilon::timed_out{};
+            throw nu::timed_out{};
 
           in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
         }
@@ -194,6 +191,4 @@ namespace c3::theta::wrapper {
 
     return std::make_unique<__link2channel>(std::move(base));
   }
-
-  // todo: reliability link wrapper
 }

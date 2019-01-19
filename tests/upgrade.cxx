@@ -17,11 +17,11 @@ int main() {
   auto l0 = wrapper::link2channel(wrapper::make_reliable<3>(wrapper::medium2link(std::move(mp.first ))));
   auto l1 = wrapper::link2channel(wrapper::make_reliable<3>(wrapper::medium2link(std::move(mp.second))));
 
-  upsilon::data tx_msg = upsilon::serialise("Hello, world!");
+  nu::data tx_msg = nu::serialise("Hello, world!");
   l0->transmit_msg(tx_msg);
 
-  upsilon::data rx_msg = l1->receive_msg();
-  std::string rx_str = upsilon::deserialise<std::string>(rx_msg);
+  nu::data rx_msg = l1->receive_msg();
+  std::string rx_str = nu::deserialise<std::string>(rx_msg);
 
   if (rx_msg != tx_msg)
     throw std::runtime_error("Message corrupted");

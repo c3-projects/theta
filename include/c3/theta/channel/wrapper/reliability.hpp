@@ -6,9 +6,13 @@
 #include <random>
 #include <thread>
 
-#include <c3/upsilon/concurrency/mutexed.hpp>
-#include <c3/upsilon/concurrency/concurrent_queue.hpp>
+#include <c3/nu/data.hpp>
+#include <c3/nu/structs.hpp>
+#include <c3/nu/concurrency/mutexed.hpp>
+#include <c3/nu/concurrency/concurrent_queue.hpp>
+
 #include <queue>
+#include <map>
 
 namespace c3::theta::wrapper {
   using reliable_id_t = uint64_t;
@@ -16,12 +20,12 @@ namespace c3::theta::wrapper {
   reliable_id_t generate_reliable_id();
 
   template<size_t PacketSize>
-  constexpr size_t reliable_packet_size = PacketSize - upsilon::serialised_size<reliable_id_t>();
+  constexpr size_t reliable_packet_size = PacketSize - nu::serialised_size<reliable_id_t>();
 
   template<size_t Retries, size_t PacketSize>
   std::unique_ptr<link<reliable_packet_size<PacketSize>>> make_reliable(
       std::unique_ptr<link<PacketSize>>&& base,
-      upsilon::timeout_t timeout = upsilon::timeout_t(1000000)) {
+      nu::timeout_t timeout = nu::timeout_t(1000000)) {
 
 
     constexpr auto new_packet_size = reliable_packet_size<PacketSize>;
@@ -36,7 +40,7 @@ namespace c3::theta::wrapper {
       class to_tx_t {
       public:
         reliable_id_t id;
-        upsilon::data payload;
+        nu::data payload;
         std::promise<void> acked;
 
       public:
@@ -49,10 +53,10 @@ namespace c3::theta::wrapper {
       decltype(timeout) _timeout;
 
     private:
-      upsilon::concurrent_queue<to_tx_t> to_tx;
-      upsilon::concurrent_queue<reliable_id_t> to_retx;
+      nu::concurrent_queue<to_tx_t> to_tx;
+      nu::concurrent_queue<reliable_id_t> to_retx;
 
-      upsilon::concurrent_queue<upsilon::data> recv_frames;
+      nu::concurrent_queue<nu::data> recv_frames;
 
       std::atomic_bool keep_reading = true;
       std::thread reader;
@@ -69,7 +73,7 @@ namespace c3::theta::wrapper {
 
     private:
       void reader_body() {
-        std::map<reliable_id_t, std::pair<upsilon::data, std::promise<void>>> sent_ids;
+        std::map<reliable_id_t, std::pair<nu::data, std::promise<void>>> sent_ids;
 
         while (keep_reading) {
           try {
@@ -77,7 +81,7 @@ namespace c3::theta::wrapper {
               auto i = to_tx.pop();
 
               auto& val = sent_ids.emplace(i.id, std::pair{
-                upsilon::squash_hybrid(frame_type::Msg, i.id, i.payload),
+                nu::squash_hybrid(frame_type::Msg, i.id, i.payload),
                 std::move(i.acked)
               }).first->second;
 
@@ -97,14 +101,14 @@ namespace c3::theta::wrapper {
 
             frame_type type;
             reliable_id_t id;
-            upsilon::data payload;
+            nu::data payload;
 
-            upsilon::expand_hybrid(frame, type, id, payload);
+            nu::expand_hybrid(frame, type, id, payload);
 
             switch (type) {
               case (frame_type::Msg): {
                 recv_frames.push(std::move(payload));
-                _base->transmit_frame(upsilon::squash_hybrid(frame_type::Ack, id));
+                _base->transmit_frame(nu::squash_hybrid(frame_type::Ack, id));
               } break;
               case (frame_type::Ack): {
                 auto iter = sent_ids.find(id);
@@ -124,13 +128,13 @@ namespace c3::theta::wrapper {
       }
 
     public:
-      void transmit_frame(upsilon::data_const_ref b) override {
+      void transmit_frame(nu::data_const_ref b) override {
         std::promise<void> promise;
         std::future<void> future = promise.get_future();
 
         reliable_id_t id = generate_reliable_id();
 
-        to_tx.push(to_tx_t{id, upsilon::data(b.begin(), b.end()), std::move(promise)});
+        to_tx.push(to_tx_t{id, nu::data(b.begin(), b.end()), std::move(promise)});
 
         for (size_t retry = 0; retry < Retries; ++retry) {
           if (future.wait_for(_timeout) == std::future_status::ready)
@@ -139,9 +143,9 @@ namespace c3::theta::wrapper {
             to_retx.push(id);
         }
 
-        throw upsilon::timed_out{};
+        throw nu::timed_out{};
       }
-      upsilon::data receive_frame() override {
+      nu::data receive_frame() override {
         return recv_frames.pop(_timeout);
       }
     };

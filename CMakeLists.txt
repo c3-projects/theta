@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.9)
 
-set(PROJECT_NAME theta)
+project(c3-theta VERSION 0.0.1)
 
-project(theta)
+find_package(c3-upsilon REQUIRED)
+find_package(c3-nu REQUIRED)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
 
-#ALL THE WARNINGS
 add_compile_options("-Wall" "-Wextra") #"-pedantic"
 
 find_package(Threads REQUIRED)
@@ -18,7 +18,7 @@ file(GLOB_RECURSE source src/*.cpp)
 
 add_library(${PROJECT_NAME} ${source})
 
-target_link_libraries(${PROJECT_NAME} upsilon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT})
 
 file(GLOB_RECURSE tests tests/*.cxx)
 

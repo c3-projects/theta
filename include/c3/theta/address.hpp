@@ -1,13 +1,14 @@
 #pragma once
 
 #include <c3/upsilon/hash.hpp>
-#include <c3/upsilon/data.hpp>
+#include <c3/nu/data.hpp>
+#include <c3/nu/structs.hpp>
 
-#include <c3/upsilon/data/helpers.hpp>
+#include <c3/nu/data/helpers.hpp>
 
 namespace c3::theta {
   template<size_t HashLen>
-  class address_like : public upsilon::static_serialisable<address_like<HashLen>> {
+  class address_like : public nu::static_serialisable<address_like<HashLen>> {
   public:
     static constexpr size_t hash_len = 128 / 8;
 
@@ -18,7 +19,7 @@ namespace c3::theta {
     upsilon::hash<hash_len> value;
 
   private:
-    static constexpr size_t _serialised_size_value = upsilon::total_serialised_size<decltype(hash_alg),
+    static constexpr size_t _serialised_size_value = nu::total_serialised_size<decltype(hash_alg),
                                                                                     decltype(value)>();
   public:
     address_like(decltype(hash_alg) hash_alg, decltype(value) value) :
@@ -26,11 +27,11 @@ namespace c3::theta {
       value{std::move(value)} {}
 
   private:
-    void _serialise_static(upsilon::data_ref b) const override {
-      upsilon::squash_static_unsafe(b, hash_alg, value);
+    void _serialise_static(nu::data_ref b) const override {
+      nu::squash_static_unsafe(b, hash_alg, value);
     }
 
-    C3_UPSILON_DEFINE_STATIC_DESERIALISE(address_like<HashLen>, _serialised_size_value, b) {
+    C3_NU_DEFINE_STATIC_DESERIALISE(address_like<HashLen>, _serialised_size_value, b) {
       decltype(hash_alg) hash_alg;
       decltype(value) value;
 
@@ -83,4 +84,4 @@ namespace c3::theta {
   using actor = address_like<256 / 8>;
 }
 
-#include <c3/upsilon/data/clean_helpers.hpp>
+#include <c3/nu/data/clean_helpers.hpp>

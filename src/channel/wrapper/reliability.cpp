@@ -1,5 +1,3 @@
-#pragma once
-
 #include "c3/theta/channel/wrapper/reliability.hpp"
 #include <c3/upsilon/csprng.hpp>
 
