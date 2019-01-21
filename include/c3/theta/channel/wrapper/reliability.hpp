@@ -85,7 +85,7 @@ namespace c3::theta::wrapper {
                 std::move(i.acked)
               }).first->second;
 
-              _base->transmit_frame(val.first);
+              _base->send_frame(val.first);
             }
 
             while (to_retx.size() > 0) {
@@ -94,7 +94,7 @@ namespace c3::theta::wrapper {
               auto iter = sent_ids.find(i);
 
               if (iter != sent_ids.end())
-                _base->transmit_frame(iter->second.first);
+                _base->send_frame(iter->second.first);
             }
 
             auto frame = _base->receive_frame();
@@ -108,7 +108,7 @@ namespace c3::theta::wrapper {
             switch (type) {
               case (frame_type::Msg): {
                 recv_frames.push(std::move(payload));
-                _base->transmit_frame(nu::squash_hybrid(frame_type::Ack, id));
+                _base->send_frame(nu::squash_hybrid(frame_type::Ack, id));
               } break;
               case (frame_type::Ack): {
                 auto iter = sent_ids.find(id);
@@ -128,7 +128,7 @@ namespace c3::theta::wrapper {
       }
 
     public:
-      void transmit_frame(nu::data_const_ref b) override {
+      void send_frame(nu::data_const_ref b) override {
         std::promise<void> promise;
         std::future<void> future = promise.get_future();
 

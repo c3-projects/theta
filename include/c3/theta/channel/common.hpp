@@ -23,7 +23,7 @@ namespace c3::theta {
       decltype(_1) outbox;
 
     public:
-      void transmit_points(gsl::span<const nu::bit_datum<DoF>> in) override {
+      void send_points(gsl::span<const nu::bit_datum<DoF>> in) override {
         for (auto i : in)
           outbox->push(i);
       }
@@ -51,10 +51,52 @@ namespace c3::theta {
   struct ipv4_ep { ipv4_address addr; uint16_t port; };
   struct ipv6_ep { ipv6_address addr; uint16_t port; };
 
-  // Again, either this or PImpl
-  std::unique_ptr<channel> tcp_ipv4(ipv4_ep);
-  std::unique_ptr<channel> tcp_ipv6(ipv6_ep);
+  constexpr uint16_t PORT_ANY = 0;
 
-  std::unique_ptr<link<512>> udp_ipv4(ipv4_ep);
-  std::unique_ptr<link<512>> udp_ipv6(ipv6_ep);
+  constexpr ipv4_address IPV4_ANY = { 0, 0, 0, 0 };
+  constexpr ipv6_address IPV6_ANY = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+  constexpr ipv4_address IPV4_LOOPBACK = { 127, 0, 0, 1 };
+  constexpr ipv6_address IPV6_LOOPBACK = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+
+  template<typename EpType>
+  class tcp_client : public stream_channel {
+  private:
+    void* impl;
+
+  public:
+    EpType get_ep();
+
+  public:
+    void send_data(nu::data_const_ref b) override;
+
+    nu::cancellable<size_t> receive_data(nu::data_ref b) override;
+
+  private:
+    tcp_client(void* impl) : impl{impl} {}
+
+  public:
+    tcp_client() : impl{nullptr} {};
+    ~tcp_client();
+
+    tcp_client<EpType>& operator=(const tcp_client<EpType>&) = delete;
+    tcp_client(const tcp_client<EpType>&) = delete;
+
+    inline tcp_client<EpType>& operator=(tcp_client<EpType>&& other) {
+      impl = other.impl;
+      other.impl = nullptr;
+    };
+    inline tcp_client(tcp_client&& other) : impl{other.impl} {
+      other.impl = nullptr;
+    }
+
+  public:
+    static nu::cancellable<std::shared_ptr<tcp_client<EpType>>> connect(EpType remote);
+  };
+
+  template<typename EpType>
+  std::function<std::unique_ptr<stream_channel>(nu::timeout_t)> tcp_server(EpType);
+
+  template<typename EpType>
+  std::function<std::unique_ptr<stream_channel>(EpType)> udp(EpType local_ep);
 }

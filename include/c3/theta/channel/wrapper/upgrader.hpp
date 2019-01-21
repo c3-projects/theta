@@ -54,9 +54,9 @@ namespace c3::theta::wrapper {
     }
 
   public:
-    void transmit_frame(nu::data_const_ref b) override {
+    void send_frame(nu::data_const_ref b) override {
       if constexpr (BeginSyncwordLenPoints > 0)
-        _base->transmit_points(begin_syncword);
+        _base->send_points(begin_syncword);
 
       nu::data bytes = nu::squash_hybrid(static_cast<standard_packet_len_t>(b.size()), b);
 
@@ -64,7 +64,7 @@ namespace c3::theta::wrapper {
 
       nu::bit_datum<DoF>::split(bytes, points);
 
-      _base->transmit_points(points);
+      _base->send_points(points);
     }
 
     nu::data receive_frame() override {
@@ -139,15 +139,15 @@ namespace c3::theta::wrapper {
         size_t n_full_frames = b.size() / PacketLen;
 
         for (size_t i = 0; i < n_full_frames; ++i)
-          _base->transmit_frame({b.data() + i * PacketLen, PacketLen});
+          _base->send_frame({b.data() + i * PacketLen, PacketLen});
 
         if (last_frame_size != 0)
-          _base->transmit_frame({b.data() + n_full_frames * PacketLen,
+          _base->send_frame({b.data() + n_full_frames * PacketLen,
                                  static_cast<decltype(b)::size_type>(last_frame_size)});
       }
 
     public:
-      void transmit_msg(nu::data_const_ref b) override {
+      void send_msg(nu::data_const_ref b) override {
         auto to_tx = nu::squash_hybrid(static_cast<standard_message_len_t>(b.size()), b);
         tx(to_tx);
       }

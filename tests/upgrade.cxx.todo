@@ -18,7 +18,7 @@ int main() {
   auto l1 = wrapper::link2channel(wrapper::make_reliable<3>(wrapper::medium2link(std::move(mp.second))));
 
   nu::data tx_msg = nu::serialise("Hello, world!");
-  l0->transmit_msg(tx_msg);
+  l0->send_msg(tx_msg);
 
   nu::data rx_msg = l1->receive_msg();
   std::string rx_str = nu::deserialise<std::string>(rx_msg);

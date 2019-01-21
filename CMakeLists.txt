@@ -16,7 +16,24 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE source src/*.cpp)
 
-add_library(${PROJECT_NAME} ${source})
+if(WIN32)
+  file(GLOB_RECURSE platform_source_tmp src/*.WINDOWS.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+# Handle all unicies (Linux, OSX, etc)
+if(UNIX)
+  file(GLOB_RECURSE platform_source_tmp src/*.UNIX.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+if(APPLE)
+  file(GLOB_RECURSE platform_source_tmp src/*.APPLE.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+
+add_library(${PROJECT_NAME} ${source} ${platform_source})
 
 target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT})
 
@@ -78,7 +95,7 @@ if(CPACK_GENERATOR STREQUAL "DEB")
   set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS " \
     libstdc++-7-dev | libc++-7-dev, \
     c3-upsilon-dev (>= 0.2.0), c3-upsilon-dev (<< 0.3)\
-    c3-nu-dev (>= 0.2.0), c3-nu-dev (<< 0.3) \
+    c3-nu-dev (>= 0.2.2), c3-nu-dev (<< 0.3) \
   ")
 endif()
 
