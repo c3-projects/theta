@@ -60,7 +60,11 @@ namespace c3::theta {
   constexpr ipv6_address IPV6_LOOPBACK = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
   template<typename EpType>
+  class tcp_server;
+
+  template<typename EpType>
   class tcp_client : public stream_channel {
+    friend class tcp_server<EpType>;
   private:
     void* impl;
 
@@ -72,7 +76,8 @@ namespace c3::theta {
 
     nu::cancellable<size_t> receive_data(nu::data_ref b) override;
 
-  private:
+  public:
+    /// Unsafe construction from impl
     tcp_client(void* impl) : impl{impl} {}
 
   public:
@@ -85,6 +90,7 @@ namespace c3::theta {
     inline tcp_client<EpType>& operator=(tcp_client<EpType>&& other) {
       impl = other.impl;
       other.impl = nullptr;
+      return *this;
     };
     inline tcp_client(tcp_client&& other) : impl{other.impl} {
       other.impl = nullptr;
@@ -96,9 +102,6 @@ namespace c3::theta {
 
   template<typename EpType>
   class tcp_server {
-  public:
-    static constexpr int default_queue_len = 32767;
-
   private:
     void* impl;
 
@@ -108,15 +111,23 @@ namespace c3::theta {
     bool bind(EpType);
 
   public:
-    tcp_server(int queue_len = default_queue_len);
-    tcp_server(EpType, int queue_len = default_queue_len);
-  };
-  //std::function<std::unique_ptr<stream_channel>(nu::timeout_t)> tcp_server(EpType);
+    tcp_server();
+    tcp_server(EpType);
 
-  template<>
-  class tcp_server<ipv4_ep>;
-  template<>
-  class tcp_server<ipv6_ep>;
+    tcp_server<EpType>& operator=(const tcp_server<EpType>&) = delete;
+    tcp_server(const tcp_server<EpType>&) = delete;
+
+    inline tcp_server<EpType>& operator=(tcp_server<EpType>&& other) {
+      impl = other.impl;
+      other.impl = nullptr;
+      return *this;
+    };
+    inline tcp_server(tcp_server&& other) : impl{other.impl} {
+      other.impl = nullptr;
+    }
+
+    ~tcp_server();
+  };
 
   template<typename EpType>
   std::function<std::unique_ptr<stream_channel>(EpType)> udp(EpType local_ep);

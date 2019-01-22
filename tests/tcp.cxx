@@ -7,14 +7,35 @@ using namespace std::chrono_literals;
 int main() {
   c3::theta::ipv4_ep ep = {c3::theta::IPV4_LOOPBACK, 42069};
 
-  auto client = c3::theta::tcp_client<c3::theta::ipv4_ep>::connect(ep).get_or_cancel(1000s).value();
+  auto server = c3::theta::tcp_server<c3::theta::ipv4_ep>(ep);
 
-  client->send_data(c3::nu::serialise("foo"));
+  auto client_c = c3::theta::tcp_client<c3::theta::ipv4_ep>::connect(ep);
+  auto server_client_c = server.accept();
 
-  c3::nu::static_data<1<<20> message_buf;
-  auto len = client->receive_data(message_buf).get_or_cancel(10s);
+  auto client = client_c.get_or_cancel(1000s).value();
+  auto server_client = server_client_c.get_or_cancel(1000s).value();
 
-  c3::nu::data_ref message{message_buf.data(), static_cast<ssize_t>(len.value())};
+  {
+    client->send_data(c3::nu::serialise<int>(69));
 
-  std::cout << c3::nu::deserialise<std::string>(message) << std::endl;
+    c3::nu::static_buffer<int> server_recv;
+
+    if (server_client->receive_data(server_recv).wait().value() != server_recv.size())
+      throw std::runtime_error("data length corrupted on transport");
+
+    if (c3::nu::deserialise<int>(server_recv) != 69)
+      throw std::runtime_error("data corrupted on transport");
+  }
+
+  {
+    server_client->send_data(c3::nu::serialise<int>(420));
+
+    c3::nu::static_buffer<int> client_recv;
+
+    if (client->receive_data(client_recv).wait().value() != client_recv.size())
+      throw std::runtime_error("data length corrupted on transport");
+
+    if (c3::nu::deserialise<int>(client_recv) != 420)
+      throw std::runtime_error("data corrupted on transport");
+  }
 }
