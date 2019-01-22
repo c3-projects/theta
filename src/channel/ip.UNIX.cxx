@@ -195,8 +195,6 @@ namespace c3::theta {
   }
 
 #define C3_THETA_IMPL_TCP_IP(EP) \
-
-  using EP=ipv4_ep;
   template<> \
   void tcp_client<EP>::send_data(nu::data_const_ref b) { \
     reinterpret_cast<fd_wrapper*>(&impl)->write(b); \
@@ -279,7 +277,7 @@ namespace c3::theta {
           } \
         } \
         while (current_pos.size() > 0 && provider.get_state() == nu::cancellable_state::Undecided); \
-        provider.maybe_provide([&] { return b.size(); });
+        provider.maybe_provide([&] { return b.size(); }); \
       } \
       catch (...) {} \
       provider.cancel(); \
@@ -318,8 +316,8 @@ namespace c3::theta {
         if (fd->poll_read()) { \
           provider.maybe_provide([&]() -> std::optional<std::shared_ptr<tcp_client<EP>>> { \
             try { \
-              auto ret = std::make_shared<tcp_client<EP>>(nullptr);
-              new(&ret->impl) fd_wrapper{::accept(fd->fd, nullptr, 0)};
+              auto ret = std::make_shared<tcp_client<EP>>(nullptr); \
+              new(&ret->impl) fd_wrapper{::accept(fd->fd, nullptr, 0)}; \
               return ret; \
             } \
             catch(...) {} \
@@ -332,7 +330,7 @@ namespace c3::theta {
     }}.detach(); \
 \
     return provider.get_cancellable(); \
-  }
+  } \
   template<> \
   EP tcp_server<EP>::get_ep() { \
     return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
@@ -340,7 +338,7 @@ namespace c3::theta {
   template<> \
   EP tcp_client<EP>::get_local_ep() { \
     return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
-  }
+  } \
   template<> \
   EP tcp_client<EP>::get_remote_ep() { \
     return reinterpret_cast<fd_wrapper*>(&impl)->get_remote_ep<EP>(); \

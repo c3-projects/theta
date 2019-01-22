@@ -95,7 +95,7 @@ if(CPACK_GENERATOR STREQUAL "DEB")
   set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS " \
     libstdc++-7-dev | libc++-7-dev, \
     c3-upsilon-dev (>= 0.2.0), c3-upsilon-dev (<< 0.3)\
-    c3-nu-dev (>= 0.2.3), c3-nu-dev (<< 0.3) \
+    c3-nu-dev (>= 0.3.0), c3-nu-dev (<< 0.4) \
   ")
 endif()
 

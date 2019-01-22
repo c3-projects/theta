@@ -30,7 +30,7 @@ namespace c3::theta {
 
       inline void receive_points(gsl::span<nu::bit_datum<DoF>> out) override {
         for (auto& i : out) {
-          if (auto p = inbox->try_pop(nu::timeout_t::zero()))
+          if (auto p = inbox->pop().get_or_cancel(nu::timeout_t::zero()))
             i = *p;
           else
             throw nu::timed_out{};

@@ -22,15 +22,13 @@ namespace c3::theta::wrapper {
   template<size_t PacketSize>
   constexpr size_t reliable_packet_size = PacketSize - nu::serialised_size<reliable_id_t>();
 
-  template<size_t Retries, size_t PacketSize>
+  template<size_t PacketSize>
   std::unique_ptr<link<reliable_packet_size<PacketSize>>> make_reliable(
       std::unique_ptr<link<PacketSize>>&& base,
-      nu::timeout_t timeout = nu::timeout_t(1000000)) {
-
-
+      nu::timeout_t timeout = std::chrono::seconds(1)) {
     constexpr auto new_packet_size = reliable_packet_size<PacketSize>;
 
-    class __make_reliable : public link<new_packet_size> {
+    class _make_reliable : public link<new_packet_size> {
     public:
       enum class frame_type : uint8_t {
         Msg = 0,
@@ -62,11 +60,11 @@ namespace c3::theta::wrapper {
       std::thread reader;
 
     public:
-      __make_reliable(decltype(base) base, decltype(timeout) timeout) :
+      _make_reliable(decltype(base) base, decltype(timeout) timeout) :
         _base{std::move(base)}, _timeout{timeout} {
-        reader = std::thread{&__make_reliable::reader_body, this};
+        reader = std::thread{&_make_reliable::reader_body, this};
       }
-      ~__make_reliable() {
+      ~_make_reliable() {
         keep_reading = false;
         reader.join();
       }
@@ -78,7 +76,7 @@ namespace c3::theta::wrapper {
         while (keep_reading) {
           try {
             while (to_tx.size() > 0) {
-              auto i = to_tx.pop();
+              auto i = to_tx.pop().get_or_cancel(_timeout).value();
 
               auto& val = sent_ids.emplace(i.id, std::pair{
                 nu::squash_hybrid(frame_type::Msg, i.id, i.payload),
@@ -89,7 +87,7 @@ namespace c3::theta::wrapper {
             }
 
             while (to_retx.size() > 0) {
-              auto i = to_retx.pop();
+              auto i = to_retx.pop().get_or_cancel(_timeout).value();
 
               auto iter = sent_ids.find(i);
 
@@ -97,7 +95,7 @@ namespace c3::theta::wrapper {
                 _base->send_frame(iter->second.first);
             }
 
-            auto frame = _base->receive_frame();
+            auto frame = _base->receive_frame().get_or_cancel(_timeout).value();
 
             frame_type type;
             reliable_id_t id;
@@ -136,20 +134,18 @@ namespace c3::theta::wrapper {
 
         to_tx.push(to_tx_t{id, nu::data(b.begin(), b.end()), std::move(promise)});
 
-        for (size_t retry = 0; retry < Retries; ++retry) {
-          if (future.wait_for(_timeout) == std::future_status::ready)
-            return;
-          else
+        // Friendly worker thread that keeps pushing the data until it is received
+        std::thread([=, future{std::move(future)}]{
+          while (future.wait_for(_timeout) != std::future_status::ready)
             to_retx.push(id);
-        }
-
-        throw nu::timed_out{};
+        }).detach();
       }
-      nu::data receive_frame() override {
-        return recv_frames.pop(_timeout);
+
+      nu::cancellable<nu::data> receive_frame() override {
+        return recv_frames.pop();
       }
     };
 
-    return std::make_unique<__make_reliable>(std::move(base), timeout);
+    return std::make_unique<_make_reliable>(std::move(base), timeout);
   }
 }

@@ -14,13 +14,13 @@ using namespace c3::theta;
 int main() {
   auto mp = fake_medium<1>();
 
-  auto l0 = wrapper::link2channel(wrapper::make_reliable<3>(wrapper::medium2link(std::move(mp.first ))));
-  auto l1 = wrapper::link2channel(wrapper::make_reliable<3>(wrapper::medium2link(std::move(mp.second))));
+  auto l0 = wrapper::link2channel(wrapper::make_reliable(wrapper::medium2link(std::move(mp.first ))));
+  auto l1 = wrapper::link2channel(wrapper::make_reliable(wrapper::medium2link(std::move(mp.second))));
 
   nu::data tx_msg = nu::serialise("Hello, world!");
   l0->send_msg(tx_msg);
 
-  nu::data rx_msg = l1->receive_msg();
+  nu::data rx_msg = l1->receive_msg().wait().value();
   std::string rx_str = nu::deserialise<std::string>(rx_msg);
 
   if (rx_msg != tx_msg)
