@@ -68,7 +68,7 @@ namespace c3::theta {
     EpType get_ep();
 
   public:
-    void send_data(nu::data_const_ref b) override;
+    void send_data(nu::data_const_ref) override;
 
     nu::cancellable<size_t> receive_data(nu::data_ref b) override;
 
@@ -95,7 +95,28 @@ namespace c3::theta {
   };
 
   template<typename EpType>
-  std::function<std::unique_ptr<stream_channel>(nu::timeout_t)> tcp_server(EpType);
+  class tcp_server {
+  public:
+    static constexpr int default_queue_len = 32767;
+
+  private:
+    void* impl;
+
+  public:
+    nu::cancellable<std::shared_ptr<tcp_client<EpType>>> accept();
+
+    bool bind(EpType);
+
+  public:
+    tcp_server(int queue_len = default_queue_len);
+    tcp_server(EpType, int queue_len = default_queue_len);
+  };
+  //std::function<std::unique_ptr<stream_channel>(nu::timeout_t)> tcp_server(EpType);
+
+  template<>
+  class tcp_server<ipv4_ep>;
+  template<>
+  class tcp_server<ipv6_ep>;
 
   template<typename EpType>
   std::function<std::unique_ptr<stream_channel>(EpType)> udp(EpType local_ep);
