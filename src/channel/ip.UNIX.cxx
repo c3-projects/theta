@@ -10,6 +10,48 @@
 namespace c3::theta {
   constexpr int socket_backlog = 32;
 
+  inline ::sockaddr_in ep2sockaddr(const ipv4_ep& ep) {
+    ::sockaddr_in ret;
+
+    memset(&ret, 0, sizeof(ret));
+
+    ret.sin_family = AF_INET;
+    ret.sin_port = htobe16(ep.port);
+    std::copy(ep.addr.begin(), ep.addr.end(), reinterpret_cast<uint8_t*>(&ret.sin_addr));
+
+    return ret;
+  }
+
+  inline ::sockaddr_in6 ep2sockaddr(const ipv6_ep& ep) {
+    ::sockaddr_in6 ret;
+
+    memset(&ret, 0, sizeof(ret));
+
+    ret.sin6_family = AF_INET6;
+    ret.sin6_port = htobe16(ep.port);
+    std::copy(ep.addr.begin(), ep.addr.end(), ret.sin6_addr.s6_addr);
+
+    return ret;
+  }
+
+  inline ipv4_ep sockaddr2ep(const ::sockaddr_in& ep_struct) {
+    ipv4_ep ep;
+    std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr),
+              reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr) + ep.addr.size(),
+              ep.addr.begin());
+    ep.port = be16toh(ep_struct.sin_port);
+    return ep;
+  }
+
+  inline ipv6_ep sockaddr2ep(const ::sockaddr_in6& ep_struct) {
+    ipv6_ep ep;
+    std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr),
+              reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr) + ep.addr.size(),
+              ep.addr.begin());
+    ep.port = be16toh(ep_struct.sin6_port);
+    return ep;
+  }
+
   enum class connected_state {
     Waiting,
     Accepted,
@@ -71,8 +113,6 @@ namespace c3::theta {
     size_t read(nu::data_ref b) {
       ssize_t n_read = ::read(fd, b.data(), static_cast<size_t>(b.size()));
 
-      int err= errno;
-
       if (n_read >= 0)
         return static_cast<size_t>(n_read);
       if (errno == EAGAIN)
@@ -82,13 +122,19 @@ namespace c3::theta {
     }
 
     bool poll_read() {
-      pollfd pfd;
+      ::pollfd pfd;
       pfd.fd = fd;
       pfd.events = POLLIN;
 
       // Poll for 1 millisecond
       return ::poll(&pfd, 1, 1) != 0;
     }
+
+    template<typename EpType>
+    EpType get_local_ep();
+
+    template<typename EpType>
+    EpType get_remote_ep();
 
   public:
     operator decltype(fd)() { return fd; }
@@ -108,28 +154,44 @@ namespace c3::theta {
 
   static_assert(sizeof(void*) >= sizeof(fd_wrapper));
 
-  inline sockaddr_in create_sockaddr(const ipv4_ep& ep) {
-    sockaddr_in ret;
+  template<>
+  ipv4_ep fd_wrapper::get_local_ep() {
+    ::sockaddr_in ep_struct;
+    ::socklen_t len = sizeof(ep_struct);
 
-    memset(&ret, 0, sizeof(ret));
+    ::getsockname(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
 
-    ret.sin_family = AF_INET;
-    ret.sin_port = htobe16(ep.port);
-    std::copy(ep.addr.begin(), ep.addr.end(), reinterpret_cast<uint8_t*>(&ret.sin_addr));
-
-    return ret;
+    return sockaddr2ep(ep_struct);
   }
 
-  inline sockaddr_in6 create_sockaddr(const ipv6_ep& ep) {
-    sockaddr_in6 ret;
+  template<>
+  ipv6_ep fd_wrapper::get_local_ep() {
+    ::sockaddr_in6 ep_struct;
+    ::socklen_t len = sizeof(ep_struct);
 
-    memset(&ret, 0, sizeof(ret));
+    ::getsockname(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
 
-    ret.sin6_family = AF_INET6;
-    ret.sin6_port = htobe16(ep.port);
-    std::copy(ep.addr.begin(), ep.addr.end(), ret.sin6_addr.s6_addr);
+    return sockaddr2ep(ep_struct);
+  }
 
-    return ret;
+  template<>
+  ipv4_ep fd_wrapper::get_remote_ep() {
+    ::sockaddr_in ep_struct;
+    ::socklen_t len = sizeof(ep_struct);
+
+    ::getpeername(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
+
+    return sockaddr2ep(ep_struct);
+  }
+
+  template<>
+  ipv6_ep fd_wrapper::get_remote_ep() {
+    ::sockaddr_in6 ep_struct;
+    ::socklen_t len = sizeof(ep_struct);
+
+    ::getpeername(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
+
+    return sockaddr2ep(ep_struct);
   }
 
 #define C3_THETA_IMPL_TCP_IP(EP) \
@@ -153,7 +215,7 @@ namespace c3::theta {
 \
         fd->set_fcntl_flag(O_NONBLOCK); \
 \
-        auto sa = create_sockaddr(remote); \
+        auto sa = ep2sockaddr(remote); \
 \
         /* Don't overcommit */ \
         if (provider.is_cancelled()) return; \
@@ -216,7 +278,8 @@ namespace c3::theta {
             }); \
           } \
         } \
-        while (!provider.is_cancelled() && current_pos.size() > 0); \
+        while (current_pos.size() > 0 && provider.get_state() == nu::cancellable_state::Undecided); \
+        provider.maybe_provide([&] { return b.size(); });
       } \
       catch (...) {} \
       provider.cancel(); \
@@ -228,7 +291,7 @@ namespace c3::theta {
   template<> \
   bool tcp_server<EP>::bind(EP ep) { \
     auto fd = reinterpret_cast<fd_wrapper*>(&impl); \
-    auto sa = create_sockaddr(ep); \
+    auto sa = ep2sockaddr(ep); \
     if (::bind(fd->fd, reinterpret_cast<::sockaddr*>(&sa), sizeof(sa)) == 0) { \
       ::listen(fd->fd, socket_backlog); \
       return true; \
@@ -265,10 +328,22 @@ namespace c3::theta {
           }); \
         } \
       } \
-      while (!provider.is_cancelled()); \
+      while (provider.get_state() == nu::cancellable_state::Undecided); \
     }}.detach(); \
 \
     return provider.get_cancellable(); \
+  }
+  template<> \
+  EP tcp_server<EP>::get_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
+  } \
+  template<> \
+  EP tcp_client<EP>::get_local_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
+  }
+  template<> \
+  EP tcp_client<EP>::get_remote_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_remote_ep<EP>(); \
   }
 
   C3_THETA_IMPL_TCP_IP(ipv4_ep);

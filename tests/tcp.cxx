@@ -5,15 +5,35 @@
 using namespace std::chrono_literals;
 
 int main() {
-  c3::theta::ipv4_ep ep = {c3::theta::IPV4_LOOPBACK, 42069};
+  c3::theta::ipv4_ep ep = {c3::theta::IPV4_LOOPBACK, c3::theta::PORT_ANY};
 
   auto server = c3::theta::tcp_server<c3::theta::ipv4_ep>(ep);
+  ep = server.get_ep();
 
   auto client_c = c3::theta::tcp_client<c3::theta::ipv4_ep>::connect(ep);
   auto server_client_c = server.accept();
 
   auto client = client_c.get_or_cancel(1000s).value();
   auto server_client = server_client_c.get_or_cancel(1000s).value();
+
+  {
+    auto client_local_ep = client->get_local_ep();
+    auto client_remote_ep = client->get_remote_ep();
+    auto server_client_local_ep = server_client->get_local_ep();
+    auto server_client_remote_ep = server_client->get_remote_ep();
+    if (ep != client_remote_ep) {
+      throw std::runtime_error("ep != client_remote_ep");
+    }
+    if (ep != server_client_local_ep) {
+      throw std::runtime_error("ep != server_client_local_ep");
+    }
+    if (server_client_local_ep != client_remote_ep) {
+      throw std::runtime_error("server_client_local_ep != client_remote_ep");
+    }
+    if (client_local_ep != server_client_remote_ep) {
+      throw std::runtime_error("client_local_ep != server_client_remote_ep");
+    }
+  }
 
   {
     client->send_data(c3::nu::serialise<int>(69));

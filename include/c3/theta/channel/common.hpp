@@ -11,7 +11,7 @@
 
 namespace c3::theta {
   template<nu::n_bits_rep_t DoF>
-  std::pair<std::unique_ptr<medium<DoF>>, std::unique_ptr<medium<DoF>>> fake_medium() {
+  inline std::pair<std::unique_ptr<medium<DoF>>, std::unique_ptr<medium<DoF>>> fake_medium() {
     using msg_t = nu::bit_datum<DoF>;
 
     auto _0 = std::make_shared<nu::concurrent_queue<msg_t>>();
@@ -23,12 +23,12 @@ namespace c3::theta {
       decltype(_1) outbox;
 
     public:
-      void send_points(gsl::span<const nu::bit_datum<DoF>> in) override {
+      inline void send_points(gsl::span<const nu::bit_datum<DoF>> in) override {
         for (auto i : in)
           outbox->push(i);
       }
 
-      void receive_points(gsl::span<nu::bit_datum<DoF>> out) override {
+      inline void receive_points(gsl::span<nu::bit_datum<DoF>> out) override {
         for (auto& i : out) {
           if (auto p = inbox->try_pop(nu::timeout_t::zero()))
             i = *p;
@@ -51,6 +51,19 @@ namespace c3::theta {
   struct ipv4_ep { ipv4_address addr; uint16_t port; };
   struct ipv6_ep { ipv6_address addr; uint16_t port; };
 
+  inline bool operator==(const ipv4_ep& a, const ipv4_ep& b) {
+    return a.port == b.port && a.addr == b.addr;
+  }
+  inline bool operator==(const ipv6_ep& a, const ipv6_ep& b) {
+    return a.port == b.port && a.addr == b.addr;
+  }
+  inline bool operator!=(const ipv4_ep& a, const ipv4_ep& b) {
+    return !(a == b);
+  }
+  inline bool operator!=(const ipv6_ep& a, const ipv6_ep& b) {
+    return !(a == b);
+  }
+
   constexpr uint16_t PORT_ANY = 0;
 
   constexpr ipv4_address IPV4_ANY = { 0, 0, 0, 0 };
@@ -69,7 +82,8 @@ namespace c3::theta {
     void* impl;
 
   public:
-    EpType get_ep();
+    EpType get_local_ep();
+    EpType get_remote_ep();
 
   public:
     void send_data(nu::data_const_ref) override;
@@ -109,6 +123,7 @@ namespace c3::theta {
     nu::cancellable<std::shared_ptr<tcp_client<EpType>>> accept();
 
     bool bind(EpType);
+    EpType get_ep();
 
   public:
     tcp_server();
