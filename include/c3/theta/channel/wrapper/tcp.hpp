@@ -11,8 +11,6 @@
 #include "c3/nu/data/helpers.hpp"
 
 namespace c3::theta::wrapper {
-  using tcp_port_t = uint16_t;
-
   class tcp_header_t : public nu::static_serialisable<tcp_header_t> {
   public:
     class flags_t {
@@ -46,13 +44,6 @@ namespace c3::theta::wrapper {
     C3_NU_DEFINE_STATIC_DESERIALISE(tcp_header_t, 20, b);
   };
 
-  template<typename BaseEp>
-  class tcp_ep {
-  public:
-    BaseEp address;
-    tcp_port_t port_no;
-  };
-
   template<size_t MaxFrameSize, typename EpType>
   class tcp_host {
   private:
@@ -61,14 +52,23 @@ namespace c3::theta::wrapper {
     nu::worm_mutexed<std::map<tcp_port_t,
                               std::shared_ptr<nu::concurrent_queue<nu::data>>>> _pumps;
 
+    port_controller<tcp_port_t> _ports;
+
   private:
+    class client;
+    friend client;
 
+    class server;
+    friend server;
+  };
 
+  class tcp_host::client : public theta::tcp_client<tcp_ep<EpType>> {
+  public:
+    std::shared_ptr<nu::concurrent_queue<nu::data>> pump;
+    tcp_port_t local_port;
 
-
-    tcp_port_t get_dynamic_port() {
-      return ports.pop().wait().value();
-    }
+    EpType remote_ep;
+    tcp_port_t remote_port;
   };
 
   template<size_t MaxFrameSize, typename EpType>

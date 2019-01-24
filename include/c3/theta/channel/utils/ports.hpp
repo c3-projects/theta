@@ -7,7 +7,14 @@
 
 #include <atomic>
 
-namespace c3::theta::wrapper {
+namespace c3::theta {
+  template<typename BaseEp, typename PortType>
+  struct ep_t {
+  public:
+    BaseEp addr;
+    PortType port;
+  };
+
   template<typename Port>
   class port_controller {
   private:
@@ -36,5 +43,16 @@ namespace c3::theta::wrapper {
     void unreserve(Port port) {
       (*in_use_ports)->erase(port);
     }
+  };
+
+  class port_error : public std::exception {
+  public:
+    std::string msg;
+
+  public:
+    inline const char* what() const noexcept override { return msg.data(); }
+
+  public:
+    inline port_error(decltype(msg) msg) : msg{std::move(msg)} {}
   };
 }

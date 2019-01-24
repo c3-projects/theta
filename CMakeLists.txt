@@ -18,7 +18,29 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE source src/*.cpp)
 
-add_library(${PROJECT_NAME} ${source})
+if(WIN32)
+  file(GLOB_RECURSE platform_source_tmp src/*.WINDOWS.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+# Handle all unicies
+if(UNIX)
+  file(GLOB_RECURSE platform_source_tmp src/*.UNIX.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+if(APPLE)
+  file(GLOB_RECURSE platform_source_tmp src/*.APPLE.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+  file(GLOB_RECURSE platform_source_tmp src/*.LINUX.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+
+add_library(${PROJECT_NAME} ${source} ${platform_source})
 
 target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT})
 

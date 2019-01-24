@@ -1,0 +1,153 @@
+
+#define C3_THETA_IMPL_TCP_IP(EP) \
+  template<> \
+  void tcp_client<EP>::send(nu::data_const_ref b) { \
+    reinterpret_cast<fd_wrapper*>(&impl)->write(b); \
+  } \
+\
+  template<> \
+  nu::cancellable<std::shared_ptr<tcp_client<EP>>> tcp_client<EP>::connect(EP remote) { \
+    nu::cancellable_provider<std::shared_ptr<tcp_client<EP>>> provider; \
+    auto ret = provider.get_cancellable(); \
+\
+    std::thread {[=]() mutable { \
+      try { \
+        auto ret = std::make_shared<tcp_client<EP>>(); \
+\
+        fd_wrapper* fd = (new (&ret->impl) fd_wrapper{::socket(AF_INET, SOCK_STREAM, 0)}); \
+\
+        fd->set_fcntl_flag(O_NONBLOCK); \
+\
+        auto sa = ep2sockaddr(remote); \
+\
+        /* Don't overcommit */ \
+        if (provider.is_cancelled()) return; \
+\
+        auto state = provider.maybe_provide([&]() -> std::optional<std::shared_ptr<tcp_client<EP>>> { \
+          auto connect_result = ::connect(fd->fd, reinterpret_cast<::sockaddr*>(&sa), sizeof(sa)); \
+\
+          if (connect_result == 0) \
+            return ret; \
+          else if (errno == EINPROGRESS) \
+            return std::nullopt; \
+          else \
+            throw std::runtime_error("Could not connect to remote host"); \
+        }); \
+\
+        if (state == nu::cancellable_state::Undecided) { \
+          while(!provider.is_cancelled()) { \
+            switch (fd->is_connected()) { \
+              case (connected_state::Accepted): \
+                provider.maybe_provide([&]() { return ret; }); \
+                return; \
+              case (connected_state::Refused): \
+                provider.cancel(); \
+                return; \
+              default: \
+                continue; \
+            } \
+          } \
+        } \
+      } \
+      catch (...) {} \
+\
+      provider.cancel(); \
+    }}.detach(); \
+\
+    return ret; \
+  } \
+\
+  template<> \
+  tcp_client<EP>::~tcp_client() { \
+    reinterpret_cast<fd_wrapper*>(&impl)->~fd_wrapper(); \
+  } \
+\
+  template<> \
+  nu::cancellable<size_t> tcp_client<EP>::receive(nu::data_ref b) { \
+    nu::cancellable_provider<size_t> provider; \
+    auto ret = provider.get_cancellable(); \
+\
+    std::thread {[=]() mutable { \
+      try { \
+        auto fd = reinterpret_cast<fd_wrapper*>(&impl); \
+        nu::data_ref current_pos = b; \
+\
+        do { \
+          if (fd->poll_read()) { \
+            provider.maybe_update([&] { \
+              size_t n_read = fd->read(current_pos); \
+              current_pos = current_pos.subspan(static_cast<ssize_t>(n_read)); \
+              return b.size() - current_pos.size(); \
+            }); \
+          } \
+        } \
+        while (current_pos.size() > 0 && provider.get_state() == nu::cancellable_state::Undecided); \
+        provider.maybe_provide([&] { return b.size(); }); \
+      } \
+      catch (...) {} \
+      provider.cancel(); \
+    }}.detach(); \
+    return ret; \
+  } \
+  template<> \
+  tcp_server<EP>::~tcp_server() { reinterpret_cast<fd_wrapper*>(&impl)->~fd_wrapper(); } \
+  template<> \
+  bool tcp_server<EP>::bind(EP ep) { \
+    auto fd = reinterpret_cast<fd_wrapper*>(&impl); \
+    auto sa = ep2sockaddr(ep); \
+    if (::bind(fd->fd, reinterpret_cast<::sockaddr*>(&sa), sizeof(sa)) == 0) { \
+      ::listen(fd->fd, socket_backlog); \
+      return true; \
+    } \
+    else return false; \
+  } \
+\
+  template<> \
+  tcp_server<EP>::tcp_server() : impl{} { \
+    new (&impl) fd_wrapper{::socket(AF_INET, SOCK_STREAM, 0)}; \
+  } \
+  template<> \
+  tcp_server<EP>::tcp_server(EP bind_addr) : tcp_server{} { \
+    bind(bind_addr); \
+  } \
+  template<> \
+  nu::cancellable<std::shared_ptr<theta::tcp_client<EP>>> tcp_server<EP>::accept() { \
+    nu::cancellable_provider<std::shared_ptr<theta::tcp_client<EP>>> provider; \
+\
+    std::thread {[=]() mutable { \
+      auto fd = reinterpret_cast<fd_wrapper*>(&impl); \
+\
+      do { \
+        if (fd->poll_read()) { \
+          provider.maybe_provide([&]() -> std::optional<std::shared_ptr<tcp_client<EP>>> { \
+            try { \
+              auto ret = std::make_shared<tcp_client<EP>>(nullptr); \
+              new(&ret->impl) fd_wrapper{::accept(fd->fd, nullptr, 0)}; \
+              return ret; \
+            } \
+            catch(...) {} \
+\
+            return std::nullopt; \
+          }); \
+        } \
+      } \
+      while (provider.get_state() == nu::cancellable_state::Undecided); \
+    }}.detach(); \
+\
+    return provider.get_cancellable(); \
+  } \
+  template<> \
+  EP tcp_server<EP>::get_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
+  } \
+  template<> \
+  EP tcp_client<EP>::get_local_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_local_ep<EP>(); \
+  } \
+  template<> \
+  EP tcp_client<EP>::get_remote_ep() { \
+    return reinterpret_cast<fd_wrapper*>(&impl)->get_remote_ep<EP>(); \
+  }
+
+  C3_THETA_IMPL_TCP_IP(ipv4_address);
+  C3_THETA_IMPL_TCP_IP(ipv6_address);
