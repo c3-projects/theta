@@ -5,8 +5,12 @@
 #include "c3/theta/channel/base.hpp"
 
 namespace c3::theta::wrapper {
+<<<<<<< Updated upstream
   using standard_packet_len_t = uint16_t;
   constexpr size_t standard_packet_size = std::numeric_limits<standard_packet_len_t>::max();
+=======
+  constexpr c3::nu::timeout_t default_medium_timeout = std::chrono::seconds(1);
+>>>>>>> Stashed changes
 
   using standard_message_len_t = uint64_t;
 
@@ -29,6 +33,7 @@ namespace c3::theta::wrapper {
     }
     static constexpr std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> begin_syncword = gen_syncword();
 
+<<<<<<< Updated upstream
     inline void sync_rx() {
       if constexpr (BeginSyncwordLenPoints > 0) {
         // Try to find the syncword
@@ -52,6 +57,11 @@ namespace c3::theta::wrapper {
         }
       }
     }
+=======
+  public:
+    void send_frame(nu::data_const_ref b) override {
+      std::scoped_lock lock{send_mutex};
+>>>>>>> Stashed changes
 
   public:
     void transmit_frame(nu::data_const_ref b) override {
@@ -70,10 +80,21 @@ namespace c3::theta::wrapper {
     nu::data receive_frame() override {
       sync_rx();
 
+<<<<<<< Updated upstream
       constexpr size_t len_n_points = nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>());
 
       std::vector<nu::bit_datum<DoF>> points(len_n_points);
       _base->receive_points(points);
+=======
+      std::thread([provider, this]() mutable {
+        do {
+          std::scoped_lock lock{receive_mutex};
+
+          try {
+            if constexpr (BeginSyncwordLenPoints > 0) {
+              // Try to find the syncword
+              std::array<nu::bit_datum<DoF>, BeginSyncwordLenPoints> maybe_begin_syncword;
+>>>>>>> Stashed changes
 
       nu::static_buffer<standard_packet_len_t> len_buf;
       nu::bit_datum<DoF>::combine(points, len_buf);
@@ -85,7 +106,19 @@ namespace c3::theta::wrapper {
 
       _base->receive_points({points.data() + len_n_points, static_cast<ssize_t>(points.size() - len_n_points)});
 
+<<<<<<< Updated upstream
       auto ret = nu::bit_datum<DoF>::combine(points, nu::serialised_size<standard_packet_len_t>() * 8);
+=======
+                while (!provider.is_decided()) {
+                  _base->receive_points({ &current->back(), 1 });
+                  if (*current == begin_syncword) break;
+                  std::copy(current->begin() + 1, current->end(),
+                            next->begin());
+                  std::swap(current, next);
+                }
+              }
+            }
+>>>>>>> Stashed changes
 
       ret.resize(len);
 
@@ -97,8 +130,17 @@ namespace c3::theta::wrapper {
 
       constexpr size_t len_n_points = nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>());
 
+<<<<<<< Updated upstream
       std::vector<nu::bit_datum<DoF>> points(len_n_points);
       _base->receive_points(points);
+=======
+            gsl::span<nu::bit_datum<DoF>> recv_buf = {
+              points.data() + len_n_points,
+              static_cast<ssize_t>(points.size() - len_n_points)
+            };
+
+            _base->receive_points(recv_buf);
+>>>>>>> Stashed changes
 
       nu::static_buffer<standard_packet_len_t> len_buf;
       nu::bit_datum<DoF>::combine(points, len_buf);
@@ -106,16 +148,30 @@ namespace c3::theta::wrapper {
 
       points.resize(nu::bit_datum<DoF>::split_len(nu::serialised_size<standard_packet_len_t>() + len));
 
+<<<<<<< Updated upstream
       _base->receive_points({points.data() + len_n_points, static_cast<ssize_t>(points.size() - len_n_points)});
 
       nu::bit_datum<DoF>::combine(points, b, nu::serialised_size<standard_packet_len_t>() * 8);
+=======
+            provider.maybe_provide([&]() -> std::optional<nu::data> { return std::move(ret); });
+          }
+          catch(...) {}
+        }
+        while (!provider.is_decided());
+      }).detach();
+>>>>>>> Stashed changes
 
       return std::min(static_cast<size_t>(b.size()), nu::bit_datum<DoF>::combine_len(points.size()));
     }
   };
 
+<<<<<<< Updated upstream
   template<nu::n_bits_rep_t DoF, size_t BeginSyncwordLenPoints = 1>
   std::unique_ptr<link<standard_packet_size>> medium2link(
+=======
+  template<nu::n_bits_rep_t DoF, size_t BeginSyncwordLenPoints = 0, typename PacketLen = uint16_t>
+  std::unique_ptr<link<std::numeric_limits<PacketLen>::max()>> medium2link(
+>>>>>>> Stashed changes
     std::unique_ptr<medium<DoF>>&& base) {
     static_assert(DoF > 0, "Must be able to send at least one bit per point");
 
@@ -141,10 +197,15 @@ namespace c3::theta::wrapper {
         for (size_t i = 0; i < n_full_frames; ++i)
           _base->transmit_frame({b.data() + i * PacketLen, PacketLen});
 
+<<<<<<< Updated upstream
         if (last_frame_size != 0)
           _base->transmit_frame({b.data() + n_full_frames * PacketLen,
                                  static_cast<decltype(b)::size_type>(last_frame_size)});
       }
+=======
+    inline void send_msg(nu::data_const_ref b) override {
+      std::scoped_lock lock{write_mutex};
+>>>>>>> Stashed changes
 
     public:
       void transmit_msg(nu::data_const_ref b) override {
@@ -166,9 +227,17 @@ namespace c3::theta::wrapper {
           if (new_frame.size() == 0)
             throw nu::timed_out{};
 
+<<<<<<< Updated upstream
           in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
         }
         while(in_buf.size() < expected_len_bytes);
+=======
+    inline nu::data try_get_frame() {
+      auto new_frame_c = _base->receive_frame();
+      std::optional<nu::data> new_frame_o = new_frame_c.get_or_cancel(PollTimeout);
+      if (!new_frame_o.has_value())
+        throw nu::timed_out{};
+>>>>>>> Stashed changes
 
         auto message_len = nu::deserialise<standard_message_len_t>({ in_buf.data(), expected_len_bytes });
 
@@ -182,8 +251,65 @@ namespace c3::theta::wrapper {
           if (new_frame.size() == 0)
             throw nu::timed_out{};
 
+<<<<<<< Updated upstream
           in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
         }
+=======
+      // TODO: seqid
+      std::thread([=]() mutable {
+        do {
+          try {
+            while(true) {
+              if (provider.is_decided()) return;
+              try {
+                auto frame = try_get_frame();
+                if (std::equal(frame.begin(), frame.end(),
+                               syncframe.begin(), syncframe.end())) break;
+              }
+              catch (const nu::timed_out&) {}
+            }
+
+            nu::data in_buf;
+
+            constexpr size_t expected_len_bytes = nu::serialised_size<MessageLen>();
+
+            in_buf.reserve(expected_len_bytes);
+
+            do {
+              if (provider.is_decided()) return;
+              try {
+                nu::data new_frame = try_get_frame();
+                in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
+              }
+              catch (const nu::timed_out&) {}
+            }
+            while(in_buf.size() < expected_len_bytes);
+
+            MessageLen message_len = nu::deserialise<MessageLen>({ in_buf.data(), expected_len_bytes });
+
+            if (message_len > std::numeric_limits<size_t>::max())
+              throw std::runtime_error("Cannot possibly fit struct in memory");
+
+            in_buf.clear();
+            in_buf.reserve(message_len);
+
+            while (in_buf.size() < message_len) {
+              if (provider.is_decided()) return;
+
+              try {
+                nu::data new_frame = try_get_frame();
+                in_buf.insert(in_buf.end(), new_frame.begin(), new_frame.end());
+              }
+              catch (const nu::timed_out&) {}
+            }
+
+            provider.maybe_provide([&]() -> std::optional<nu::data> { return in_buf; });
+          }
+          catch(...) {}
+        }
+        while (!provider.is_decided());
+      }).detach();
+>>>>>>> Stashed changes
 
         return in_buf;
       }

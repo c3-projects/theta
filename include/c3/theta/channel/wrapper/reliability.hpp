@@ -53,7 +53,7 @@ namespace c3::theta::wrapper {
       decltype(timeout) _timeout;
 
     private:
-      nu::concurrent_queue<to_tx_t> to_tx;
+      nu::concurrent_queue<std::shared_ptr<to_tx_t>> to_tx;
       nu::concurrent_queue<reliable_id_t> to_retx;
 
       nu::concurrent_queue<nu::data> recv_frames;
@@ -80,9 +80,9 @@ namespace c3::theta::wrapper {
             while (to_tx.size() > 0) {
               auto i = to_tx.pop();
 
-              auto& val = sent_ids.emplace(i.id, std::pair{
-                nu::squash_hybrid(frame_type::Msg, i.id, i.payload),
-                std::move(i.acked)
+              auto& val = sent_ids.emplace(i->id, std::pair{
+                nu::squash_hybrid(frame_type::Msg, i->id, i->payload),
+                std::move(i->acked)
               }).first->second;
 
               _base->transmit_frame(val.first);
@@ -134,7 +134,7 @@ namespace c3::theta::wrapper {
 
         reliable_id_t id = generate_reliable_id();
 
-        to_tx.push(to_tx_t{id, nu::data(b.begin(), b.end()), std::move(promise)});
+        to_tx.push(std::make_shared<to_tx_t>(id, nu::data(b.begin(), b.end()), std::move(promise)));
 
         for (size_t retry = 0; retry < Retries; ++retry) {
           if (future.wait_for(_timeout) == std::future_status::ready)

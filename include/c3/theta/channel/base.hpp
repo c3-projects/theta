@@ -39,7 +39,30 @@ namespace c3::theta {
     virtual size_t receive_frame(nu::data_ref b) {
       auto f = receive_frame();
 
+<<<<<<< Updated upstream
       ssize_t n_to_copy = std::min(b.size(), static_cast<ssize_t>(f.size()));
+=======
+  // A medium that can send and receive sequences of octets to arbitary hosts
+  template<size_t MaxFrameSize, typename EpType>
+  class floating_link {
+  public:
+    virtual EpType get_ep();
+
+    virtual bool bind(const EpType&);
+
+    virtual void send_frame(nu::data_const_ref b, EpType dest) = 0;
+
+    virtual nu::cancellable<std::pair<EpType, nu::data>> receive_frame() = 0;
+  public:
+    virtual ~floating_link() = default;
+  };
+
+  // A medium that can send and receive arbitarily long sequences of octets (up to 2^64 - 1)
+  // but without message delimiters
+  class stream_channel {
+  public:
+    virtual void send_data(nu::data_const_ref b) = 0;
+>>>>>>> Stashed changes
 
       std::copy(f.begin(), f.begin() + n_to_copy, b.begin());
 

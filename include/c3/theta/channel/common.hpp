@@ -30,7 +30,11 @@ namespace c3::theta {
 
       void receive_points(gsl::span<nu::bit_datum<DoF>> out) override {
         for (auto& i : out) {
+<<<<<<< Updated upstream
           if (auto p = inbox->try_pop(nu::timeout_t::zero()))
+=======
+          if (auto p = inbox->pop().get_or_cancel(std::chrono::milliseconds(100)))
+>>>>>>> Stashed changes
             i = *p;
           else
             throw nu::timed_out{};
@@ -45,6 +49,7 @@ namespace c3::theta {
     return { std::make_unique<tmp_medium>(_0, _1), std::make_unique<tmp_medium>(_1, _0) };
   }
 
+<<<<<<< Updated upstream
   using ipv4_address = std::array<uint8_t, 4>;
   using ipv6_address = std::array<uint8_t, 16>;
 
@@ -57,4 +62,8 @@ namespace c3::theta {
 
   std::unique_ptr<link<512>> udp_ipv4(ipv4_ep);
   std::unique_ptr<link<512>> udp_ipv6(ipv6_ep);
+=======
+  template<typename EpType>
+  std::function<std::unique_ptr<stream_channel>(EpType)> udp(EpType local_ep);
+>>>>>>> Stashed changes
 }

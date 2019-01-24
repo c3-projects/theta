@@ -5,10 +5,12 @@ project(c3-theta VERSION 0.0.1)
 find_package(c3-upsilon REQUIRED)
 find_package(c3-nu REQUIRED)
 
+set(CMAKE_CXX_COMPILER clang++)
+
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
 
-add_compile_options("-Wall" "-Wextra") #"-pedantic"
+add_compile_options("-Wall" "-Wextra" "-O0") #"-pedantic"
 
 find_package(Threads REQUIRED)
 
