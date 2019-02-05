@@ -1,5 +1,3 @@
-#pragma once
-
 #include <c3/theta/channel/tcp.hpp>
 
 namespace c3::theta {
@@ -8,9 +6,5 @@ namespace c3::theta {
     auto opt_b = nu::serialise(options);
     ret.insert(opt_b.begin(), opt_b.end());
     return ret;
-  }
-  
-  tcp_header tcp_header::_deserialise(c3::nu::data_const_ref b) {
-    
   }
 }

@@ -5,14 +5,14 @@
 #include "c3/theta/channel/tcp.hpp"
 
 namespace c3::theta::ip {
-  using ipv4_address = std::array<uint8_t, 4>;
-  using ipv6_address = std::array<uint8_t, 16>;
+  using address_v4 = std::array<uint8_t, 4>;
+  using address_v6 = std::array<uint8_t, 16>;
 
-  constexpr ipv4_address IPV4_ANY = { 0, 0, 0, 0 };
-  constexpr ipv6_address IPV6_ANY = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  constexpr address_v4 any_v4 = { 0, 0, 0, 0 };
+  constexpr address_v6 any_v6 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-  constexpr ipv4_address IPV4_LOOPBACK = { 127, 0, 0, 1 };
-  constexpr ipv6_address IPV6_LOOPBACK = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+  constexpr address_v4 loopback_v4 = { 127, 0, 0, 1 };
+  constexpr address_v6 loopback_v6 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
   template<typename BaseAddr>
   class tcp_host : public theta::tcp_host<BaseAddr> {
@@ -27,6 +27,6 @@ namespace c3::theta::ip {
     inline tcp_host(BaseAddr addr) : local_addr{addr} {}
   };
 
-  template class tcp_host<ipv4_address>;
-  template class tcp_host<ipv6_address>;
+  template class tcp_host<address_v4>;
+  template class tcp_host<address_v6>;
 }

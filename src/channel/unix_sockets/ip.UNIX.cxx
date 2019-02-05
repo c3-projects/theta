@@ -154,9 +154,9 @@ namespace c3::theta::ip {
     return std::make_unique<ip_tcp_server<BaseAddr>>(std::move(fd));
   }
 
-  template class ip_tcp_client<ipv4_address>;
-  template class ip_tcp_client<ipv6_address>;
+  template class ip_tcp_client<address_v4>;
+  template class ip_tcp_client<address_v6>;
 
-  template class ip_tcp_server<ipv4_address>;
-  template class ip_tcp_server<ipv6_address>;
+  template class ip_tcp_server<address_v4>;
+  template class ip_tcp_server<address_v6>;
 }

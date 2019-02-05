@@ -13,7 +13,7 @@ Theta defines an abstraction called a medium, which has the following properties
 2. It is not controlled by time-travelling or mind-reading gods with supercomputers
 or a positive solution to P = NP
 
-The crypto community as a whole is pretty comfortable with the latter for all mediums.
+The crypto community as a whole is pretty comfortable with the latter for all media.
 If this turns out to be a false assumption, then we will all be too busy dying as civilisation crumbles
 to care about the security of our messages.
 
@@ -33,13 +33,9 @@ However, a lot of things can be done to make theta's life easier and faster, suc
 
 ## Higher level media
 
-A pseudochannel is a medium that can determine where a message begins.
+A channel is a medium that can send and receive sequences of octets
 
-A channel is a pseudochannel that can determine length of a message.
-
-A half-link is a channel that guarantees integrity (the message is correct)
-
-A link is a half-link that guarantees reliability (the message will get to the destination)
+A link that can send and receive arbitarily long sequences of octets (up to 2^64 - 1)
 
 A conversation is a link with the following guarenteees:
 * Privacy (the message cannot be read by anyone outside the conversation)

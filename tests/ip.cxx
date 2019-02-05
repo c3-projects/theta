@@ -5,7 +5,7 @@
 using namespace std::chrono_literals;
 
 int main() {
-  c3::theta::ip::tcp_host<c3::theta::ip::ipv4_address> localhost(c3::theta::ip::IPV4_LOOPBACK);
+  c3::theta::ip::tcp_host<c3::theta::ip::address_v4> localhost(c3::theta::ip::loopback_v4);
 
   auto server = localhost.listen(c3::theta::TCP_PORT_ANY);
   auto ep = server->get_ep();

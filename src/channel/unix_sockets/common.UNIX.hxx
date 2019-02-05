@@ -15,7 +15,7 @@ namespace c3::theta {
   template<typename BaseEp>
   using sock_ep = ep_t<BaseEp, uint16_t>;
 
-  inline ::sockaddr_in ep2sockaddr(const sock_ep<ip::ipv4_address>& ep) {
+  inline ::sockaddr_in ep2sockaddr(const sock_ep<ip::address_v4>& ep) {
     ::sockaddr_in ret;
 
     memset(&ret, 0, sizeof(ret));
@@ -27,7 +27,7 @@ namespace c3::theta {
     return ret;
   }
 
-  inline ::sockaddr_in6 ep2sockaddr(const sock_ep<ip::ipv6_address>& ep) {
+  inline ::sockaddr_in6 ep2sockaddr(const sock_ep<ip::address_v6>& ep) {
     ::sockaddr_in6 ret;
 
     memset(&ret, 0, sizeof(ret));
@@ -39,8 +39,8 @@ namespace c3::theta {
     return ret;
   }
 
-  inline sock_ep<ip::ipv4_address> sockaddr2ep(const ::sockaddr_in& ep_struct) {
-    sock_ep<ip::ipv4_address> ep;
+  inline sock_ep<ip::address_v4> sockaddr2ep(const ::sockaddr_in& ep_struct) {
+    sock_ep<ip::address_v4> ep;
     std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr),
               reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr) + ep.addr.size(),
               ep.addr.begin());
@@ -48,8 +48,8 @@ namespace c3::theta {
     return ep;
   }
 
-  inline sock_ep<ip::ipv6_address> sockaddr2ep(const ::sockaddr_in6& ep_struct) {
-    sock_ep<ip::ipv6_address> ep;
+  inline sock_ep<ip::address_v6> sockaddr2ep(const ::sockaddr_in6& ep_struct) {
+    sock_ep<ip::address_v6> ep;
     std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr),
               reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr) + ep.addr.size(),
               ep.addr.begin());
@@ -178,7 +178,7 @@ namespace c3::theta {
   };
 
   template<>
-  sock_ep<ip::ipv4_address> fd_wrapper::get_local_ep() {
+  sock_ep<ip::address_v4> fd_wrapper::get_local_ep() {
     ::sockaddr_in ep_struct;
     ::socklen_t len = sizeof(ep_struct);
 
@@ -188,7 +188,7 @@ namespace c3::theta {
   }
 
   template<>
-  sock_ep<ip::ipv6_address> fd_wrapper::get_local_ep() {
+  sock_ep<ip::address_v6> fd_wrapper::get_local_ep() {
     ::sockaddr_in6 ep_struct;
     ::socklen_t len = sizeof(ep_struct);
 
@@ -198,7 +198,7 @@ namespace c3::theta {
   }
 
   template<>
-  sock_ep<ip::ipv4_address> fd_wrapper::get_remote_ep() {
+  sock_ep<ip::address_v4> fd_wrapper::get_remote_ep() {
     ::sockaddr_in ep_struct;
     ::socklen_t len = sizeof(ep_struct);
 
@@ -208,7 +208,7 @@ namespace c3::theta {
   }
 
   template<>
-  sock_ep<ip::ipv6_address> fd_wrapper::get_remote_ep() {
+  sock_ep<ip::address_v6> fd_wrapper::get_remote_ep() {
     ::sockaddr_in6 ep_struct;
     ::socklen_t len = sizeof(ep_struct);
 

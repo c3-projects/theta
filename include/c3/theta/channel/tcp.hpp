@@ -125,7 +125,7 @@ namespace c3::theta {
     public:
       std::optional<uint16_t> max_seg_size = std::nullopt;
       std::optional<int8_t> window_scale = std::nullopt;
-      std::optional<void> sack_permitted = std::nullopt;
+      bool sack_permitted = false;
       std::optional<std::vector<std::pair<uint32_t, uint32_t>>> sack = std::nullopt;
       std::optional<std::pair<uint32_t, uint32_t>> timestamp = std::nullopt;
 
