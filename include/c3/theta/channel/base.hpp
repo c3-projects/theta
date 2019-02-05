@@ -45,11 +45,9 @@ namespace c3::theta {
   template<size_t MaxFrameSize, typename EpType>
   class floating_link {
   public:
-    virtual EpType get_ep();
+    virtual EpType get_ep() = 0;
 
-    virtual bool bind(const EpType&);
-
-    virtual void send(nu::data_const_ref b, EpType dest) = 0;
+    virtual void send(EpType dest, nu::data_const_ref b) = 0;
 
     virtual nu::cancellable<std::pair<EpType, nu::data>> receive() = 0;
   public:
@@ -76,16 +74,5 @@ namespace c3::theta {
 
   public:
     virtual ~channel() = default;
-  };
-
-  // A secure channel
-  class conversation {
-  public:
-    virtual void send(nu::data_const_ref b) = 0;
-
-    virtual nu::data receive() = 0;
-
-  public:
-    virtual ~conversation() = default;
   };
 }
