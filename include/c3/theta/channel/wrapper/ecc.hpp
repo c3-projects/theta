@@ -30,17 +30,17 @@ namespace c3::theta::wrapper {
         std::unique_ptr<medium<DoF>> base;
 
       public:
-        void transmit_points(gsl::span<nu::bit_datum<MessageBits>> in) override {
+        void send(gsl::span<nu::bit_datum<MessageBits>> in) override {
           std::vector<nu::bit_datum<nu::dynamic_size>> in_dyn(in.begin(), in.end());
           std::vector<nu::bit_datum<nu::dynamic_size>> out_dyn(in.size());
           encode(in_dyn, out_dyn);
           std::vector<nu::bit_datum<DoF>> out(out_dyn.begin(), out_dyn.end());
-          base->transmit_points(out);
+          base->send(out);
         }
 
-        void receive_points(gsl::span<nu::bit_datum<MessageBits>> out) override {
+        void receive(gsl::span<nu::bit_datum<MessageBits>> out) override {
           std::vector<nu::bit_datum<DoF>> in(out.size());
-          base->receive_points(in);
+          base->receive(in);
           std::vector<nu::bit_datum<nu::dynamic_size>> in_dyn(in.size());
           std::vector<nu::bit_datum<nu::dynamic_size>> out_dyn(in.begin(), in.end());
           decode(in_dyn, out_dyn);

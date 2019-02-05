@@ -3,7 +3,7 @@
 //#include "c3/theta/channel/common.hpp"
 
 //namespace c3::theta::wrapper {
-//  void hamming::translate_transmit(medium& m, nu::data_const_ref b) {
+//  void hamming::translate_send(medium& m, nu::data_const_ref b) {
 
 //  }
 
@@ -11,7 +11,7 @@
 
 //  }
 
-//  void hamming::translate_transmit_msg(channel& c, nu::data_const_ref b) {
+//  void hamming::translate_send_msg(channel& c, nu::data_const_ref b) {
 
 //  }
 

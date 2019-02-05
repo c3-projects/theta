@@ -5,10 +5,12 @@ project(c3-theta VERSION 0.0.1)
 find_package(c3-upsilon REQUIRED)
 find_package(c3-nu REQUIRED)
 
+set(CMAKE_CXX_COMPILER clang++)
+
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
 
-add_compile_options("-Wall" "-Wextra") #"-pedantic"
+add_compile_options("-Wall" "-Wextra" "-O0") #"-pedantic"
 
 find_package(Threads REQUIRED)
 
@@ -16,7 +18,29 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE source src/*.cpp)
 
-add_library(${PROJECT_NAME} ${source})
+if(WIN32)
+  file(GLOB_RECURSE platform_source_tmp src/*.WINDOWS.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+# Handle all unicies
+if(UNIX)
+  file(GLOB_RECURSE platform_source_tmp src/*.UNIX.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+if(APPLE)
+  file(GLOB_RECURSE platform_source_tmp src/*.APPLE.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
+  file(GLOB_RECURSE platform_source_tmp src/*.LINUX.cxx)
+  set(platform_source ${platform_source} ${platform_source_tmp})
+endif()
+
+
+add_library(${PROJECT_NAME} ${source} ${platform_source})
 
 target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT})
 
@@ -78,7 +102,7 @@ if(CPACK_GENERATOR STREQUAL "DEB")
   set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS " \
     libstdc++-7-dev | libc++-7-dev, \
     c3-upsilon-dev (>= 0.2.0), c3-upsilon-dev (<< 0.3)\
-    c3-nu-dev (>= 0.2.0), c3-nu-dev (<< 0.3) \
+    c3-nu-dev (>= 0.4.1), c3-nu-dev (<< 0.5) \
   ")
 endif()
 
