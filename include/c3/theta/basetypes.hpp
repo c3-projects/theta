@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <chrono>
-#include <array>
+#include <array>\
 
 #include <c3/nu/serialisation.hpp>
 

@@ -9,6 +9,27 @@
 #include <c3/nu/data/helpers.hpp>
 
 namespace c3::theta::spannernet {
+  class user : public nu::serialisable<user> {
+  public:
+    using ref = upsilon::safe_hash<16>;
+
+  public:
+    upsilon::identity main_id;
+    std::vector<upsilon::identity> weak_ids;
+    std::vector<upsilon::agreer> weak_agreers;
+
+  public:
+    nu::data _serialise() const override {
+      return nu::squash<uint16_t>(main_id, weak_ids, weak_agreers);
+    }
+
+    C3_NU_DEFINE_DESERIALISE(user, b) {
+      user ret;
+      nu::expand<uint16_t>(b, ret.main_id, ret.weak_ids, ret.weak_agreers);
+      return ret;
+    }
+  };
+
   class spanner : public nu::serialisable<spanner> {
   public:
     /// Should be ephemeral

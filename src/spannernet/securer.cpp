@@ -1,4 +1,4 @@
-#include "c3/theta/spannernet/securer.hpp"
+#include "c3/theta/spannernet/common.hpp"
 
 #include <c3/upsilon/hash.hpp>
 #include <c3/upsilon/symmetric.hpp>
@@ -10,30 +10,7 @@
 #include <c3/nu/data/helpers.hpp>
 
 namespace c3::theta::spannernet {
-  class packet_header : public nu::serialisable<packet_header> {
-  public:
-    upsilon::safe_hash<id_hash_len> src_id;
-    upsilon::safe_hash<id_hash_len> dst_id;
-    upsilon::symmetric_algorithm alg;
-    nu::data nonce;
-
-  private:
-    nu::data _serialise() const override {
-      return nu::squash_hybrid(src_id, dst_id, alg, nonce);
-    }
-
-    C3_NU_DEFINE_DESERIALISE(packet_header, b) {
-      packet_header ret;
-      nu::expand_hybrid(b, ret.src_id, ret.dst_id, ret.alg, ret.nonce);
-      return ret;
-    }
-  };
-
-  decltype(packet_header::nonce) gen_nonce() {
-    static thread_local std::uniform_int_distribution<decltype(packet_header::nonce)> dist;
-    return dist(upsilon::csprng::standard);
-  }
-
+  /*
   void open_securer::_pump_body() {
     nu::mutexed<std::shared_ptr<nu::cancellable<nu::data>>> current_cancellable = nullptr;
     std::thread t([&](){
@@ -67,6 +44,7 @@ namespace c3::theta::spannernet {
       base{std::move(_base)} {
 
   }
+  */
 }
 
 #include <c3/nu/data/clean_helpers.hpp>

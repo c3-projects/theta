@@ -56,7 +56,7 @@ namespace c3::theta {
     virtual ~floating_link() = default;
   };
 
-  // A medium that can send and receive arbitarily long sequences of octets (up to 2^64 - 1)
+  // A medium that can send and receive arbitarily long sequences of octets
   // but without message delimiters
   class stream_channel {
   public:
@@ -67,7 +67,7 @@ namespace c3::theta {
     virtual ~stream_channel() = default;
   };
 
-  // A link that can send and receive arbitarily long sequences of octets (up to 2^64 - 1)
+  // A link that can send and receive arbitarily long sequences of octets
   class channel {
   public:
     virtual void send(nu::data_const_ref) = 0;
@@ -76,5 +76,16 @@ namespace c3::theta {
 
   public:
     virtual ~channel() = default;
+  };
+
+  template<typename Ep>
+  class floating_channel {
+  public:
+    virtual void send(const Ep&, nu::data_const_ref) = 0;
+
+    virtual nu::cancellable<std::pair<Ep, nu::data>> receive() = 0;
+
+  public:
+    virtual ~floating_channel() = default;
   };
 }
