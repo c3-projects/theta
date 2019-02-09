@@ -18,22 +18,35 @@ namespace c3::theta::spannernet {
     upsilon::symmetric_algorithm enc_alg;
     nu::data message_enc;
 
-  public:
+  private:
     nu::data _serialise() const override {
-      return nu::squash_dynamic<uint16_t>(src_agreer, dst_agreer, enc_alg);
+      return nu::squash<uint16_t>(src_agreer, dst_agreer, enc_alg, message_enc);
     }
 
     C3_NU_DEFINE_DESERIALISE(spanner, b) {
       spanner ret;
-      nu::expand_dynamic(b, ret.src_agreer, ret.dst_agreer, ret.enc_alg)
+      nu::expand<uint16_t>(b, ret.src_agreer, ret.dst_agreer, ret.enc_alg, ret.message_enc);
+      return ret;
     }
   };
 
   class message : public nu::serialisable<message> {
+  public:
     /// Acts as verification of sender
     upsilon::identity sender;
     nu::data signature;
-    nu::data message;
+    nu::data payload;
+
+  private:
+    nu::data _serialise() const override {
+      return nu::squash<uint16_t>(sender, signature, payload);
+    }
+
+    C3_NU_DEFINE_DESERIALISE(message, b) {
+      message ret;
+      nu::expand<uint16_t>(b, ret.sender, ret.signature, ret.payload);
+      return ret;
+    }
   };
 }
 
