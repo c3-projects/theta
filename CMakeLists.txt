@@ -37,10 +37,12 @@ if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
   set(platform_source ${platform_source} ${platform_source_tmp})
 endif()
 
+# TODO: platform specific
+set(BLUETOOTH_LIBRARY bluetooth)
 
 add_library(${PROJECT_NAME} ${source} ${platform_source})
 
-target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${PROJECT_NAME} c3-upsilon c3-nu ${CMAKE_THREAD_LIBS_INIT} ${BLUETOOTH_LIBRARY})
 
 file(GLOB_RECURSE tests tests/*.cxx)
 
