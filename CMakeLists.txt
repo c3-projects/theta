@@ -99,8 +99,8 @@ if(CPACK_GENERATOR STREQUAL "DEB")
   SET(CPACK_COMPONENT_UNSPECIFIED_HIDDEN TRUE)
   set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS " \
     libstdc++-7-dev | libc++-7-dev, \
-    c3-upsilon-dev (>= 0.2.0), c3-upsilon-dev (<< 0.3)\
-    c3-nu-dev (>= 0.4.1), c3-nu-dev (<< 0.5) \
+    c3-upsilon-dev (>= 0.2.7), c3-upsilon-dev (<< 0.3)\
+    c3-nu-dev (>= 0.7.2), c3-nu-dev (<< 0.8) \
   ")
 endif()
 
