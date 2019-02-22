@@ -15,6 +15,8 @@
 //! If the timeout is non-positive, an exception should be immediately thrown
 
 namespace c3::theta {
+  constexpr nu::timeout_t poll_timeout = std::chrono::milliseconds(10);
+
   // Something that can chuck bits into and gather bits from some medium
   //
   // Buffering is recommended but not mandatory
@@ -70,7 +72,7 @@ namespace c3::theta {
   public:
     virtual void send(nu::data_const_ref) = 0;
 
-    virtual nu::data receive() = 0;
+    virtual nu::cancellable<nu::data> receive() = 0;
 
   public:
     virtual ~channel() = default;

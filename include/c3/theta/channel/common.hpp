@@ -30,7 +30,7 @@ namespace c3::theta {
 
       void receive(gsl::span<nu::bit_datum<DoF>> out) override {
         for (auto& i : out) {
-          if (auto p = inbox->pop().get_or_cancel(std::chrono::milliseconds(100)))
+          if (auto p = inbox->pop().get_or_cancel(poll_timeout));
             i = *p;
           else
             throw nu::timed_out{};
