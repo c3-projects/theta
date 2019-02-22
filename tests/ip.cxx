@@ -13,8 +13,8 @@ int main() {
   auto client_c = localhost.connect(ep);
   auto server_client_c = server->accept();
 
-  auto client = client_c.try_get(1000s).value();
-  auto server_client = server_client_c.try_get(1000s).value();
+  auto client = client_c.try_take(1s).value();
+  auto server_client = server_client_c.try_take(1s).value();
 
   {
     auto client_local_ep = client->get_local_ep();

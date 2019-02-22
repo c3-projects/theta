@@ -12,10 +12,7 @@
 namespace c3::theta {
   constexpr int socket_backlog = 32;
 
-  template<typename BaseEp>
-  using sock_ep = ep_t<BaseEp, uint16_t>;
-
-  inline ::sockaddr_in ep2sockaddr(const sock_ep<ip::address_v4>& ep) {
+  inline ::sockaddr_in ep2sockaddr(const ep_t<ip::address_v4>& ep) {
     ::sockaddr_in ret;
 
     memset(&ret, 0, sizeof(ret));
@@ -27,35 +24,23 @@ namespace c3::theta {
     return ret;
   }
 
-  inline ::sockaddr_in6 ep2sockaddr(const sock_ep<ip::address_v6>& ep) {
-    ::sockaddr_in6 ret;
+  template<typename BaseEp>
+  struct _sockaddr_t;
 
-    memset(&ret, 0, sizeof(ret));
+  template<typename BaseEp>
+  using sockaddr_t = typename _sockaddr_t<BaseEp>::type;
 
-    ret.sin6_family = AF_INET6;
-    ret.sin6_port = htobe16(ep.port);
-    std::copy(ep.addr.begin(), ep.addr.end(), ret.sin6_addr.s6_addr);
+  template<typename SockAddr>
+  struct _baseep_t;
 
-    return ret;
-  }
+  template<typename SockAddr>
+  using baseep_t = typename _baseep_t<SockAddr>::type;
 
-  inline sock_ep<ip::address_v4> sockaddr2ep(const ::sockaddr_in& ep_struct) {
-    sock_ep<ip::address_v4> ep;
-    std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr),
-              reinterpret_cast<const uint8_t*>(&ep_struct.sin_addr) + ep.addr.size(),
-              ep.addr.begin());
-    ep.port = be16toh(ep_struct.sin_port);
-    return ep;
-  }
+  template<typename BaseEp>
+  inline sockaddr_t<BaseEp> ep2sockaddr(const BaseEp&);
 
-  inline sock_ep<ip::address_v6> sockaddr2ep(const ::sockaddr_in6& ep_struct) {
-    sock_ep<ip::address_v6> ep;
-    std::copy(reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr),
-              reinterpret_cast<const uint8_t*>(&ep_struct.sin6_addr) + ep.addr.size(),
-              ep.addr.begin());
-    ep.port = be16toh(ep_struct.sin6_port);
-    return ep;
-  }
+  template<typename SockAddr>
+  inline baseep_t<SockAddr> sockaddr2ep(const SockAddr&);
 
   enum class connected_state {
     Waiting,
@@ -89,7 +74,7 @@ namespace c3::theta {
     }
 
     connected_state is_connected() noexcept {
-      pollfd pfd;
+      ::pollfd pfd;
       pfd.fd = fd;
       pfd.events = POLLOUT;
 
@@ -131,20 +116,40 @@ namespace c3::theta {
       pfd.fd = fd;
       pfd.events = POLLIN;
 
-      // Poll for 1 millisecond
-      return ::poll(&pfd, 1, 1) != 0;
+      // Poll for 100 milliseconds
+      return ::poll(&pfd, 1, 100) != 0;
     }
 
-    template<typename BaseAddr>
-    sock_ep<BaseAddr> get_local_ep();
+    template<typename BaseEp>
+    BaseEp get_local_ep() {
+      sockaddr_t<BaseEp> ep_struct;
+      ::socklen_t len = sizeof(ep_struct);
 
-    template<typename BaseAddr>
-    sock_ep<BaseAddr> get_remote_ep();
+      ::getsockname(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
 
-    template<typename BaseAddr>
-    bool bind(sock_ep<BaseAddr> ep) {
+      return sockaddr2ep(ep_struct);
+    }
+
+    template<typename BaseEp>
+    BaseEp get_remote_ep() {
+      sockaddr_t<BaseEp> ep_struct;
+      ::socklen_t len = sizeof(ep_struct);
+
+      ::getpeername(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
+
+      return sockaddr2ep(ep_struct);
+    }
+
+    template<typename BaseEp>
+    bool bind(BaseEp ep) {
       auto sa = ep2sockaddr(ep);
       return ::bind(fd, reinterpret_cast<::sockaddr*>(&sa), sizeof(sa)) == 0;
+    }
+
+    template<typename BaseEp>
+    bool connect(BaseEp ep) {
+      auto sa = ep2sockaddr(ep);
+      return ::connect(fd, reinterpret_cast<::sockaddr*>(&sa), sizeof(sa)) == 0;
     }
 
     void listen() {
@@ -175,45 +180,102 @@ namespace c3::theta {
       other.fd = -1;
       return *this;
     }
+
+  public:
+    nu::cancellable<size_t> receive_c(nu::data_ref b) {
+      nu::cancellable_provider<size_t> provider;
+      auto ret = provider.get_cancellable();
+
+      std::thread {[=]() mutable {
+        try {
+          nu::data_ref current_pos = b;
+
+          do {
+            if (poll_read()) {
+              provider.maybe_update([&] {
+                size_t n_read = read(current_pos);
+                current_pos = current_pos.subspan(static_cast<ssize_t>(n_read));
+                return b.size() - current_pos.size();
+              });
+            }
+          }
+          while (current_pos.size() > 0 && provider.get_state() == nu::cancellable_state::Undecided);
+          provider.maybe_provide([&] { return b.size(); });
+        }
+        catch (...) {}
+        provider.cancel();
+      }}.detach();
+      return ret;
+    }
+
+    template<typename Ep>
+    static nu::cancellable<std::unique_ptr<fd_wrapper>> connect_c(Ep bind_ep, Ep remote_ep,
+                                                                  int domain, int type, int protocol) {
+      nu::cancellable_provider<std::unique_ptr<fd_wrapper>> provider;
+      auto ret = provider.get_cancellable();
+
+      std::thread {[=, bind_ep{std::move(bind_ep)}, remote_ep{std::move(remote_ep)}]() mutable {
+        try {
+          fd_wrapper fd{::socket(domain, type, protocol)};
+
+          fd.bind(bind_ep);
+
+          provider.maybe_provide([&]() -> std::optional<std::unique_ptr<fd_wrapper>> {
+            if (fd.connect(remote_ep))
+              return std::make_unique<fd_wrapper>(std::move(fd));
+            else if (errno == EINPROGRESS)
+              return std::nullopt;
+            else
+              throw std::runtime_error("Could not connect to remote host");
+          });
+
+          while(!provider.is_decided()) {
+            switch (fd.is_connected()) {
+              case (connected_state::Accepted):
+                provider.maybe_provide([&]() {
+                  return std::make_unique<fd_wrapper>(std::move(fd));
+                });
+                return;
+              case (connected_state::Refused):
+                provider.cancel();
+                return;
+              default:
+                continue;
+            }
+          }
+        }
+        catch (...) {}
+
+        provider.cancel();
+      }}.detach();
+
+      return ret;
+    }
+
+    nu::cancellable<std::unique_ptr<fd_wrapper>> accept_c() {
+      nu::cancellable_provider<std::unique_ptr<fd_wrapper>> provider;
+
+      std::thread {[=]() mutable {
+        do {
+          if (poll_read()) {
+            provider.maybe_provide([&]() -> std::optional<std::unique_ptr<fd_wrapper>> {
+              // A single dodgy client shouldn't cancel this
+              try {
+                return std::make_unique<fd_wrapper>(::accept(fd, nullptr, 0));
+              }
+              catch(...) {}
+
+              return std::nullopt;
+            });
+          }
+        }
+        while (provider.get_state() == nu::cancellable_state::Undecided);
+      }}.detach();
+
+      return provider.get_cancellable();
+    }
   };
 
-  template<>
-  sock_ep<ip::address_v4> fd_wrapper::get_local_ep() {
-    ::sockaddr_in ep_struct;
-    ::socklen_t len = sizeof(ep_struct);
-
-    ::getsockname(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
-
-    return sockaddr2ep(ep_struct);
-  }
-
-  template<>
-  sock_ep<ip::address_v6> fd_wrapper::get_local_ep() {
-    ::sockaddr_in6 ep_struct;
-    ::socklen_t len = sizeof(ep_struct);
-
-    ::getsockname(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
-
-    return sockaddr2ep(ep_struct);
-  }
-
-  template<>
-  sock_ep<ip::address_v4> fd_wrapper::get_remote_ep() {
-    ::sockaddr_in ep_struct;
-    ::socklen_t len = sizeof(ep_struct);
-
-    ::getpeername(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
-
-    return sockaddr2ep(ep_struct);
-  }
-
-  template<>
-  sock_ep<ip::address_v6> fd_wrapper::get_remote_ep() {
-    ::sockaddr_in6 ep_struct;
-    ::socklen_t len = sizeof(ep_struct);
-
-    ::getpeername(fd, reinterpret_cast<sockaddr*>(&ep_struct), &len);
-
-    return sockaddr2ep(ep_struct);
-  }
+  template<typename BaseAddr>
+  constexpr int af();
 }

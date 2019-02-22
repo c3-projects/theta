@@ -14,14 +14,20 @@ namespace c3::theta::ip {
   constexpr address_v4 loopback_v4 = { 127, 0, 0, 1 };
   constexpr address_v6 loopback_v6 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
+  using v4_tcp_ep_t = ep_t<address_v4>;
+  using v6_tcp_ep_t = ep_t<address_v6>;
+
   template<typename BaseAddr>
   class tcp_host : public theta::tcp_host<BaseAddr> {
+  private:
     BaseAddr local_addr;
 
   public:
-    nu::cancellable<std::shared_ptr<tcp_client<BaseAddr>>> connect(tcp_ep<BaseAddr> remote) override;
-    // TODO: auto bind to local_ep to force iface
-    std::unique_ptr<tcp_server<BaseAddr>> listen(tcp_port_t) override;
+    BaseAddr local_address() const override { return local_addr; }
+
+    nu::cancellable<std::unique_ptr<tcp_client<BaseAddr>>> connect(tcp_ep_t<BaseAddr> remote) override;
+
+    std::unique_ptr<tcp_server_t<BaseAddr>> listen(tcp_port_t) override;
 
   public:
     inline tcp_host(BaseAddr addr) : local_addr{addr} {}
