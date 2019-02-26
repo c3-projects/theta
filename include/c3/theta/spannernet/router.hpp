@@ -36,14 +36,21 @@ namespace c3::theta::spannernet {
     }
   };
 
-  // Bundle for packet
+  template<typename Address>
+  class router_channel;
+
+  template<typename Address>
+  using router_channel_table = nu::mutexed<std::map<Address, router_channel<Address>*>>;
+
   template<typename Address>
   class router_channel {
   public:
     using ping_counter_t = uint64_t;
 
   private:
-    nu::timeout_t ping_timeout = std::chrono::seconds(10);
+    std::unique_ptr<channel> c;
+
+    nu::timeout_t ping_timeout;
     nu::now_t last_ping_received;
     // TODO: Please init at beginning
     std::atomic<nu::timeout_t> last_ping_time;
@@ -53,107 +60,120 @@ namespace c3::theta::spannernet {
 
     ping_counter_t ping_counter;
 
-    std::unique_ptr<channel> c;
+    std::shared_ptr<router_channel_table>
 
   private:
     enum class verb : uint8_t {
       Ping = 0,
-
-      Reset = 255,
-      Shake = 254,
-      Init = 253,
+      RttRequest = 1,
+      RttFound = 2,
+      RttNotFound = 3,
     };
 
   private:
-    // Who needs init when we can just extrapolate from pings?
     inline void init() {
-      using handshake_buf_t = nu::static_data<32>;
+      // Since we don't really care who goes first, as long as we agree,
+      // a remote which forces a low or a high value doesn't really matter,
+      // and as such does not need to be protected against.
 
-      // Send a reset
-      c->send(nu::squash(verb::Reset, nu::data{}));
+      using ping_counter_t = uint64_t;
 
       // Send a shake
-      static thread_local std::uniform_int_distribution<uint8_t> dist;
+      static thread_local std::uniform_int_distribution<ping_counter_t> dist;
 
-      handshake_buf_t our_buf;
-      std::generate(our_buf.begin(), our_buf.end(),
-                    []() { return dist(upsilon::csprng::standard); });
-      c->send(nu::squash(verb::Reset, our_buf));
 
-      ping_counter_t their_counter;
+      ping_counter_t our_handshake;
+      do our_handshake = dist(upsilon::csprng::standard);
+      while (our_handshake == 0);
+      c->send(nu::squash(verb::Reset, our_handshake));
 
-      // Recieve their reset ack
-      if (need_to_recv_reset) {
+      ping_counter_t their_handshake;
+
+      // Recieve their shake
+      {
         auto start = nu::now();
-        auto patience = ping_timeout;
+        auto finish = start + ping_timeout;
 
-        while (patience < 0) {
-          if (auto buf = c->receive().try_take(patience)) {
+        while (nu::now() < finish) {
+          if (auto buf = c->receive().try_take(ping_timeout)) {
             verb v;
             nu::data b;
             nu::expand(buf, v, b);
 
-            if (v != verb::Shake)
+            if (v != verb::Ping)
               continue;
-
-
           }
           else throw nu::timed_out{};
         }
       }
 
-
-
-
-      // Set ping counter to a random value
-      ping_counter = dist(upsilon::csprng::standard);
-
-      // Send an initialisation request
-      c->send(nu::squash(ping_counter, std::vector<Address>{}));
-
+      // We caught them in an overflow, set us to 1
+      if (their_handshake == 0)
+        ping_counter == 1;
+      else if (their_handshake == our_handshake)
+        throw std::runtime_error("Anomalous handshake");
+      else
+        ping_counter = std::max(our_handshake, their_handshake);
     }
 
-    void _worker_body() {
+    inline void _ping() {
+      c->send(nu::squash(verb::Ping, ping_counter));
+    }
+
+    inline void _worker_body() {
       while (keep_working) {
         if (auto buf = c->receive().try_take(ping_timeout)) {
-          ping_counter_t their_ping_counter;
-          std::vector<Address> requested_rtts;
+          verb v;
+          nu::data payload;
 
-          nu::expand(buf, their_ping_counter, requested_rtts);
+          switch (v) {
+            case(verb::Ping): {
+              auto their_ping_counter = nu::deserialise<ping_counter_t>(payload);
 
-          // If it is a initialisation request, init with them
-          if (their_ping_counter == 0) {
-            init();
+              // If it is a newer packet, or they have negotiated a higher one, update our ping_counter
+              if (their_ping_counter == 0 || their_ping_counter > ping_counter) {
+                ping_counter = 0;
+              }
+              // If it is an older ping, or a lower negotiated one, ignore it
+              else if (their_ping_counter < ping_counter)
+                continue;
+
+              // Increment the ping_counter, as we are the next one after theirs
+              ping_counter++;
+
+              // Send a ping
+              _ping();
+            } break;
+
+            case (verb::OobRequest): {
+
+            }; break;
+
+            // Ignore bad messages
+            default: continue;
           }
-          // If it is an old ping, ignore it
-          else if (their_ping_counter != ping_counter)
-            continue;
 
-          ping_counter++;
         }
         // They missed a ping :(
         //
-        // Ping them anyway though
-        else;
-
-        std::vector<Address> requested_rtts = std::move(**to_request);
-
-        c->send(nu::squash(ping_counter, requested_rtts));
+        // Ping them anyway though :)
+        else _ping();
       }
     }
 
   public:
     inline nu::timeout_t last_ping() { return last_ping_time; }
     nu::cancellable<nu::timeout_t> request_rtt(const Address& addr);
+    inline void
 
   public:
-    router_channel() {
-      begin_init();
-
+    router_channel(decltype(c)&& base_channel,
+                   nu::timeout_t ping_timeout = std::chrono::seconds(10)) :
+      c{std::move(base_channel)}, ping_timeout{std::move(ping_timeout)} {
+      init();
     }
   };
 
-  // Return a ping as soon as we recieve one
   template<typename Address>
   class dynamic_routing_table : public routing_table<Address> {
   public:
@@ -174,5 +194,5 @@ namespace c3::theta::spannernet {
       auto handle = _table.get_rw();
       handle->insert_or_assign(addr, usr);
     }
-  }
+  };
 }
