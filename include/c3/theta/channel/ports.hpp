@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include <c3/nu/integral.hpp>
+#include <c3/nu/integer.hpp>
 #include <c3/nu/concurrency/concurrent_queue.hpp>
 
 #include <atomic>

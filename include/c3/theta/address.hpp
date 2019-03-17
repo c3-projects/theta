@@ -2,7 +2,7 @@
 
 #include <c3/upsilon/hash.hpp>
 #include <c3/nu/data.hpp>
-#include <c3/nu/structs.hpp>
+#include <c3/nu/data/collections/mixed.hpp>
 
 #include <c3/nu/data/helpers.hpp>
 
