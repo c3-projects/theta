@@ -1,7 +1,7 @@
 #pragma once
 
 #include <c3/nu/data.hpp>
-#include <c3/nu/structs.hpp>
+#include <c3/nu/data/collections.hpp>
 #include <c3/upsilon/agreement.hpp>
 #include <c3/upsilon/symmetric.hpp>
 #include <c3/upsilon/identity.hpp>
@@ -20,12 +20,18 @@ namespace c3::theta::spannernet {
 
   public:
     nu::data _serialise() const override {
-      return nu::squash<uint16_t>(main_id, weak_ids, weak_agreers);
+      auto weak_ids_b = nu::squash_seq<uint32_t>(weak_ids.begin(), weak_ids.end());
+      auto weak_agreers_b = nu::squash_seq<uint32_t>(weak_agreers.begin(), weak_agreers.end());
+      return nu::squash<uint32_t>(main_id, weak_ids_b, weak_agreers_b);
     }
 
     C3_NU_DEFINE_DESERIALISE(user, b) {
       user ret;
-      nu::expand<uint16_t>(b, ret.main_id, ret.weak_ids, ret.weak_agreers);
+      nu::data weak_ids_b;
+      nu::data weak_agreers_b;
+      nu::expand<uint32_t>(b, ret.main_id, weak_ids_b, weak_agreers_b);
+      ret.weak_ids = nu::expand_seq<upsilon::identity, uint32_t>(weak_ids_b);
+      ret.weak_agreers = nu::expand_seq<upsilon::agreer, uint32_t>(weak_agreers_b);
       return ret;
     }
   };
