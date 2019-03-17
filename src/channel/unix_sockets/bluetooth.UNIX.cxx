@@ -9,7 +9,7 @@
 #include "common.UNIX.hxx"
 
 #include <iostream>
-#include "c3/nu/data/hex.hpp"
+#include <c3/nu/data/encoders/hex.hpp>
 
 namespace c3::theta {
   template<>
