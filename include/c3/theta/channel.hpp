@@ -1,4 +1,4 @@
 #pragma once
 
-#include "c3/theta/channel/base.hpp"
-#include "c3/theta/channel/common.hpp"
+#include "c3/theta/base.hpp"
+#include "c3/theta/common.hpp"

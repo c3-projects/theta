@@ -3,7 +3,7 @@
 #include <map>
 #include <memory>
 
-#include "c3/theta/channel/base.hpp"
+#include "c3/theta/base.hpp"
 
 #include "c3/nu/concurrency/mutexed.hpp"
 #include "c3/nu/concurrency/concurrent_queue.hpp"

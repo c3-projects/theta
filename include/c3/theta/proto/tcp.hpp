@@ -3,33 +3,30 @@
 #include <c3/nu/concurrency/cancellable.hpp>
 #include <c3/nu/data.hpp>
 
-#include "c3/theta/channel/base.hpp"
-#include "c3/theta/channel/server.hpp"
-#include "c3/theta/channel/ports.hpp"
+#include "c3/theta/base.hpp"
+#include "c3/theta/server.hpp"
+#include "c3/theta/ports.hpp"
 
 #include <c3/nu/data/helpers.hpp>
 
-namespace c3::theta {
-  using tcp_port_t = uint16_t;
+namespace c3::theta::proto::tcp {
+  using port_t = uint16_t;
 
   template<typename BaseAddr>
-  struct _tcp_ep_t { using type = ep_t<BaseAddr, tcp_port_t>; };
+  using ep_t = ep_t<BaseAddr, port_t>;
+
+  constexpr port_t PORT_ANY = 0;
 
   template<typename BaseAddr>
-  using tcp_ep_t = typename _tcp_ep_t<BaseAddr>::type;
-
-  constexpr tcp_port_t TCP_PORT_ANY = 0;
+  class client : public stream_channel, public theta::client<BaseAddr> {};
 
   template<typename BaseAddr>
-  class tcp_client : public stream_channel, public client<BaseAddr> {};
+  using server_t = theta::server<tcp::client<BaseAddr>, BaseAddr>;
 
   template<typename BaseAddr>
-  using tcp_server_t = server<tcp_client<BaseAddr>, BaseAddr>;
+  class host : public theta::host<tcp::client<BaseAddr>, BaseAddr> {};
 
-  template<typename BaseAddr>
-  class tcp_host : public host<tcp_client<BaseAddr>, BaseAddr> {};
-
-  class tcp_header : public nu::serialisable<tcp_header> {
+  class header : public nu::serialisable<tcp::header> {
   public:
     class flags_t {
     public:
@@ -48,8 +45,8 @@ namespace c3::theta {
 
     class base_t : public nu::static_serialisable<base_t> {
     public:
-      tcp_port_t src_port;
-      tcp_port_t dst_port;
+      tcp::port_t src_port;
+      tcp::port_t dst_port;
       uint32_t seq_id;
       uint32_t ack_id = 0;
       nu::bit_datum<4> data_offset = 5;
@@ -83,7 +80,7 @@ namespace c3::theta {
 
   public:
     nu::data _serialise() const override;
-    C3_NU_DEFINE_DESERIALISE(tcp_header, _);
+    C3_NU_DEFINE_DESERIALISE(tcp::header, _);
   };
 }
 

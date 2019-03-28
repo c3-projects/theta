@@ -3,7 +3,7 @@
 #include <memory>
 #include <c3/nu/concurrency/cancellable.hpp>
 
-#include "c3/theta/channel/ports.hpp"
+#include "c3/theta/ports.hpp"
 
 namespace c3::theta {
   template<typename Address, typename Port = standard_port_t>
@@ -40,4 +40,9 @@ namespace c3::theta {
   public:
     virtual ~host() = default;
   };
+
+  template<typename Client, typename Address, typename Port = standard_port_t>
+  class connectionless_host {
+
+  }
 }
